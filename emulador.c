@@ -38,6 +38,9 @@ struct Machine
 
 typedef struct Machine state8080;
 
+//ARITHMETIC
+void add_register(state8080 *state, uint8_t *r);
+
 //DATA TRANSFER
 void move_register(uint8_t *r1, uint8_t * r2);
 void move_from_mem(state8080 *state, uint8_t *r1);
@@ -54,6 +57,7 @@ uint16_t get_HL_addr(state8080 *state);
 uint8_t get_PC_data(state8080 *state);
 uint16_t get_bytes_addr(state8080 *state);
 void swap(uint8_t *one, uint8_t *two);
+int is_bit_set(uint8_t byte, int bit);
 
 int main()
 {
@@ -64,6 +68,7 @@ int main()
 //MISC
 uint16_t get_adress(uint8_t high, uint8_t low)
 {
+    
     return  high << 8 | low;
 }
 
@@ -99,8 +104,49 @@ void swap(uint8_t *one, uint8_t *two)
     *two = temp;
 }
 
+int is_bit_set(uint8_t byte, int bit)
+{
+    return byte & (1 << bit);
+}
+
+void set_flag(uint8_t *flag, uint16_t result, int bit)
+{
+    if(is_bit_set(result, bit)) *flag = 1;
+    else *flag = 0;
+}
+
+void set_flags(state8080 *state, uint16_t result)
+{
+    set_flag(&state->status_flags->S, result, 7);
+    set_flag(&state->status_flags->S, result, 7);
+    set_flag(&state->status_flags->S, result, 7);
+    set_flag(&state->status_flags->S, result, 7);
+}
+
+//---------------------ARITHMETIC---------------------------
+
+//ADD r
+void add_register(state8080 *state, uint8_t *r)
+{
+    uint16_t result = state->registers->A + *r;
+    if(is_bit_set(result, 8))
+    {
+	state->status_flags->CY = 1;
+    }
+    else
+    {
+	state->status_flags->CY = 0;
+    }
+
+    if(is_bit_set())
+
+    state->registers->A = (uint8_t) result;
+}
+
+//-------------------- DATA TRANSFER -------------------------
+
 //MOV r1, r2
-void move_register(uint8_t *r1, uint8_t * r2)
+void move_register(uint8_t *r1, uint8_t *r2)
 {
     *r1 = *r2;
 }
@@ -130,7 +176,7 @@ void move_immediate(state8080 *state, uint8_t *r)
 void move_to_mem_imed(state8080 *state)
 {
     uint8_t byte2 = get_PC_data_inc(state);
-
+    
     uint16_t addr = get_HL_addr(state);
     state->RAM[addr] = byte2;
 }
