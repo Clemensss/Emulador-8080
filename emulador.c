@@ -1,99 +1,85 @@
-#include <stdio.h>
-#include <stdio.h>
-#include <stdint.h>
-
-struct ConditionFlags
-{
-    uint8_t Z:1;
-    uint8_t S:1;
-    uint8_t P:1;
-    uint8_t CY:1;
-    uint8_t AC:1;
-};
-
-typedef struct ConditionFlags flags;
-
-struct Registers
-{
-    uint8_t A;    
-    uint8_t B;    
-    uint8_t C;
-    uint8_t D;    
-    uint8_t E;    
-    uint8_t H;    
-    uint8_t L;    
-
-    uint16_t SP;    
-    uint16_t PC;    
-};
-
-typedef struct Registers reg;
-
-struct Machine
-{
-    flags *status_flags;
-    reg *registers;
-    uint8_t *RAM;
-};
-
-typedef struct Machine state8080;
-
-//ARITHMETIC
-void add_register(state8080 *state, uint8_t *r);
-
-//DATA TRANSFER
-void move_register(uint8_t *r1, uint8_t * r2);
-void move_from_mem(state8080 *state, uint8_t *r1);
-void move_to_mem(state8080 *state, uint8_t *r1);
-void move_to_mem_imed(state8080 *state);
-void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl);
-void load_acc_dir(state8080 *state);
-void store_acc_dir(state8080 *state);
-void load_HL_dir(state8080 *state);
-
-//MISC
-uint16_t get_adress(uint8_t byte1, uint8_t byte2);
-uint16_t get_HL_addr(state8080 *state);
-uint8_t get_PC_data(state8080 *state);
-uint16_t get_bytes_addr(state8080 *state);
-void swap(uint8_t *one, uint8_t *two);
-int is_bit_set(uint8_t byte, int bit);
+#include "emulador.h"
 
 int main()
 {
-    get    
+    tests();
     return 0;
 }
 
-//MISC
-uint16_t get_adress(uint8_t high, uint8_t low)
+void tests()
 {
+    state8080* state = init_machine();
     
-    return  high << 8 | low;
+    state->registers->A = 0x0f;
+    state->registers->B = 0xf1;
+    
+    print_state(state);
+
+    state->registers->B = twoscomp(0xf1);
+    add_register(state, &state->registers->B);
+    
+    print_state(state);
+
+
 }
 
+void print_state(state8080 *state)
+{
+    printf("Registers A    B    C    D    E    H    L\n");
+    printf("          %#04x",state->registers->A);
+    printf(" %#04x",state->registers->B);
+    printf(" %#04x",state->registers->C);
+    printf(" %#04x",state->registers->D);
+    printf(" %#04x",state->registers->E);
+    printf(" %#04x",state->registers->H);
+    printf(" %#04x\n",state->registers->L);
+
+    printf("flags:\n");
+    printf("\tZ: %s\n", state->status_flags->Z ? "true":"false");
+    printf("\tP: %s\n", state->status_flags->P ? "true":"false");
+    printf("\tS: %s\n", state->status_flags->S ? "true":"false");
+    printf("\tCY: %s\n", state->status_flags->CY ? "true":"false");   
+}
+
+//MISC
+
+//joins the content of two reg pairs
+uint16_t joint(uint8_t rh, uint8_t rl)
+{    
+    uint16_t byte2 = rh;
+    uint16_t byte1 = rl;
+    return  byte2 << 8 | byte1;
+}
+
+//disjoints the contents of a reg pair 
+void disjoint(uint16_t joint, uint8_t *rh, uint8_t *rl)
+{
+    *rl = (uint8_t)  joint;
+    *rh = (uint8_t) (joint >> 8);
+}
+
+//gets the address inside hl reg pair
 uint16_t get_HL_addr(state8080 *state)
 {
-    return  get_adress(state->registers->H, state->registers->L);
+    return  joint(state->registers->H, state->registers->L);
 }
 
+//gets whatever is in the pc
 uint8_t get_PC_data(state8080 *state)
 {
     return state->RAM[state->registers->PC];
 }
 
-uint8_t get_PC_data_inc(state8080 *state)
-{
-    state->registers->PC++;
-    return get_PC_data(state);
-}
-
+//gets the bytes in the imediate 2byte addr
 uint16_t get_bytes_addr(state8080 *state)
 {
-    uint8_t byte2 = get_PC_data_inc(state);
-    uint8_t byte3 = get_PC_data_inc(state);
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
 
-    return get_adress(byte3, byte2);
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+   
+    return joint(byte3, byte2);
 }
 
 void swap(uint8_t *one, uint8_t *two)
@@ -109,19 +95,75 @@ int is_bit_set(uint8_t byte, int bit)
     return byte & (1 << bit);
 }
 
-void set_flag(uint8_t *flag, uint16_t result, int bit)
+int parity(uint8_t num)
 {
-    if(is_bit_set(result, bit)) *flag = 1;
-    else *flag = 0;
+    return !(num%2);
 }
 
-void set_flags(state8080 *state, uint16_t result)
+uint8_t set_flags(state8080 *state, uint16_t result)
 {
-    set_flag(&state->status_flags->S, result, 7);
-    set_flag(&state->status_flags->S, result, 7);
-    set_flag(&state->status_flags->S, result, 7);
-    set_flag(&state->status_flags->S, result, 7);
+    if((result & 0xff00)) state->status_flags->CY = 1;
+    else state->status_flags->CY = 0;
+
+    result = (uint8_t) result;
+
+    if(is_bit_set(result, 7)) state->status_flags->S = 1;
+    else state->status_flags->S = 0;
+
+    if(parity(result)) state->status_flags->P = 1;
+    else state->status_flags->P = 0;
+
+    if(!result) state->status_flags->Z = 1;
+    else state->status_flags->Z = 0;
+    
+    return result;
 }
+
+uint8_t twoscomp(uint8_t num)
+{
+    return (~num)+1;
+}
+
+//INIT
+reg* init_reg()
+{
+    reg* registers = (reg*)malloc(sizeof(reg));
+    registers->A = 0;
+    registers->B = 0;
+    registers->C = 0;
+    registers->D = 0;
+    registers->E = 0;
+    registers->H = 0;
+    registers->L = 0;
+    registers->PC = 0;
+    registers->SP = 0;
+
+    return registers;
+}
+
+flags* init_flag()
+{
+    flags* status_flags = (flags*)malloc(sizeof(reg));
+    status_flags->Z = 0;
+    status_flags->P = 0;
+    status_flags->S = 0;
+    status_flags->AC = 0;
+    status_flags->CY = 0;
+
+    return status_flags;
+}
+
+state8080* init_machine()
+{
+    state8080 *state = (state8080*)(malloc(sizeof(state8080)));
+
+    state->status_flags = init_flag();
+    state->registers = init_reg();
+
+    state->RAM = (uint8_t*)malloc(sizeof(uint8_t)*RAM_SIZE);
+    return state;
+}
+
 
 //---------------------ARITHMETIC---------------------------
 
@@ -129,20 +171,158 @@ void set_flags(state8080 *state, uint16_t result)
 void add_register(state8080 *state, uint8_t *r)
 {
     uint16_t result = state->registers->A + *r;
-    if(is_bit_set(result, 8))
-    {
-	state->status_flags->CY = 1;
-    }
-    else
-    {
-	state->status_flags->CY = 0;
-    }
-
-    if(is_bit_set())
-
-    state->registers->A = (uint8_t) result;
+    state->registers->A = set_flags(state, result);
 }
 
+//ADD M
+void add_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    add_register(state, &data);
+}
+
+//ADI data
+void add_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    add_register(state, &data);
+}
+
+//ADC r
+void add_register_carry(state8080 *state, uint8_t *r)
+{
+    add_register(state, r);
+    state->registers->A += state->status_flags->CY;
+}
+
+//ADC M
+void add_memory_carry(state8080 *state)
+{
+    add_memory(state);
+    state->registers->A += state->status_flags->CY;
+}
+
+//ACI data
+void add_immediate_carry(state8080 *state)
+{
+    add_immediate(state);
+    state->registers->A += state->status_flags->CY;
+}
+
+//TODO this is retarded
+//SUB r
+void sub_register(state8080 *state, uint8_t *r)
+{
+    *r = twoscomp(*r);
+    add_register(state, r);
+}
+
+//SUB M
+void sub_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    sub_register(state, &data);
+}
+
+//SUI data
+void sub_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    sub_register(state, &data);
+}
+
+//SBB r
+void sub_register_borrow(state8080 *state, uint8_t *r)
+{
+    sub_register(state, r);
+    state->registers->A -= state->status_flags->CY;
+}
+
+//SBB M
+void sub_memory_borrow(state8080 *state)
+{
+    sub_memory(state);
+    state->registers->A -= state->status_flags->CY;
+}
+
+//SBI data
+void sub_immediate_borrow(state8080 *state)
+{
+    sub_immediate(state);
+    state->registers->A -= state->status_flags->CY;
+}
+
+//INR r
+void inc_register(state8080 *state, uint8_t *r)
+{
+    uint16_t result = *r + 1;
+    *r = set_flags(state, result);
+}
+
+//INR M
+void inc_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint16_t result = state->RAM[addr] +1;
+    state->RAM[addr] = set_flags(state, result);
+}
+
+//DCR r
+void dec_register(state8080 *state, uint8_t *r)
+{
+    uint16_t result = *r - 1;
+    *r = set_flags(state, result);
+}
+
+//DCR M
+void dec_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint16_t result = state->RAM[addr] -1;
+    state->RAM[addr] = set_flags(state, result);
+}
+
+//INX rp
+void inc_reg_pair(uint8_t *rh, uint8_t *rl)
+{
+    uint16_t content = joint(*rh, *rl);
+    content++;
+    disjoint(content, rh, rl);
+}
+
+//DCX rp
+void dec_reg_pair(uint8_t *rh, uint8_t *rl)
+{
+    uint16_t content = joint(*rh, *rl);
+    content--;
+    disjoint(content, rh, rl);
+}
+
+//DAD rp
+void add_reg_pair_HL(state8080 *state, uint8_t *rh, uint8_t *rl)
+{
+    uint16_t hl = joint(state->registers->H, state->registers->L);
+    uint16_t rp = joint(*rh, *rl);
+
+    uint32_t result = hl + rp;
+
+    if(result & 0xffff0000) state->status_flags->CY = 1;
+    else state->status_flags->CY = 0;
+
+    result = (uint16_t) result;
+
+    disjoint(result, &state->registers->H, &state->registers->L);
+}
+
+//
 //-------------------- DATA TRANSFER -------------------------
 
 //MOV r1, r2
@@ -175,17 +355,21 @@ void move_immediate(state8080 *state, uint8_t *r)
 //MVI M, data
 void move_to_mem_imed(state8080 *state)
 {
-    uint8_t byte2 = get_PC_data_inc(state);
-    
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
     uint16_t addr = get_HL_addr(state);
-    state->RAM[addr] = byte2;
+    state->RAM[addr] = data;
 }
 
 //LXP rp, data 16
 void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
-    uint8_t byte2 = get_PC_data_inc(state);
-    uint8_t byte3 = get_PC_data_inc(state);
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
 
     *rh = byte3;
     *rl = byte2;
@@ -226,22 +410,22 @@ void store_HL_dir(state8080 *state)
 //LDAX rp
 void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
-    uint16_t addr = get_adress(*rh, *rl);
+    uint16_t addr = joint(*rh, *rl);
     state->registers->A = state->RAM[addr];
 }
 
 //STAX rp
 void store_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
-    uint16_t addr = get_adress(*rh, *rl);
+    uint16_t addr = joint(*rh, *rl);
     state->RAM[addr] = state->registers->A;
 }
 
 //XCHG
 void exchange_HL_DE(state8080 *state)
 {
-    swap(&state->registers-H, &state->registers->D);
-    swap(&state->registers-L, &state->registers->E);
+    swap(&state->registers->H, &state->registers->D);
+    swap(&state->registers->L, &state->registers->E);
 }
 
 void command_maker(state8080 *state)
@@ -258,7 +442,6 @@ void command_maker(state8080 *state)
 	    break;
 
 	case 0x02: //STAX B	1	(BC) <- A
-	    store_acc_indir()	
 	    store_acc_indir(state, &state->registers->B, &state->registers->C);
 	    break; 
 
@@ -403,7 +586,7 @@ void command_maker(state8080 *state)
 	case 0x3b: //DCX SP	1	SP = SP-1
 	case 0x3c: //INR A	1   Z, S, P, AC	A <- A+1
 	case 0x3d: //DCR A	1   Z, S, P, AC	A <- A-1
-	case 0x3L: //MVI A,D8    2	    A <- byte 2
+	case 0x3e: //MVI A,D8    2	    A <- byte 2
 
 	    move_immediate(state, &state->registers->A);
 	    break;
