@@ -37,6 +37,7 @@ and_immediate	emulador.c	/^void and_immediate(state8080 *state)$/;"	f
 and_memory	emulador.c	/^void and_memory(state8080 *state)$/;"	f
 and_register	emulador.c	/^void and_register(state8080 *state, uint8_t r)$/;"	f
 and_thing	emulador.c	/^void and_thing(state8080 *state, uint8_t var)$/;"	f
+call	emulador.c	/^void call(state8080 *state)$/;"	f
 cmp_immediate	emulador.c	/^void cmp_immediate(state8080 *state)$/;"	f
 cmp_memory	emulador.c	/^void cmp_memory(state8080 *state)$/;"	f
 cmp_register	emulador.c	/^void cmp_register(state8080 *state, uint8_t r)$/;"	f
@@ -44,30 +45,44 @@ cmp_thing	emulador.c	/^void cmp_thing(state8080 *state, uint8_t var)$/;"	f
 command_maker	emulador.c	/^void command_maker(state8080 *state)$/;"	f
 complement_acc	emulador.c	/^void complement_acc(state8080 *state)$/;"	f
 complement_carry	emulador.c	/^void complement_carry(state8080 *state)$/;"	f
+cond_call	emulador.c	/^void cond_call(state8080 *state, uint8_t flag)$/;"	f
+cond_jump	emulador.c	/^void cond_jump(state8080 *state, uint8_t flag)$/;"	f
+cond_ret_op	emulador.c	/^void cond_ret_op(state8080 *state, uint8_t flag)$/;"	f
 dec_memory	emulador.c	/^void dec_memory(state8080 *state)$/;"	f
 dec_reg_pair	emulador.c	/^void dec_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f
 dec_register	emulador.c	/^void dec_register(state8080 *state, uint8_t *r)$/;"	f
+disable_inter	emulador.c	/^void disable_inter(state8080 *state)$/;"	f
 disjoint	emulador.c	/^void disjoint(uint16_t joint, uint8_t *rh, uint8_t *rl)$/;"	f
 disseble8080	dissemb.c	/^int disseble8080(unsigned char *buffer, int pc)$/;"	f
+enable_inter	emulador.c	/^void enable_inter(state8080 *state)$/;"	f
 exchange_HL_DE	emulador.c	/^void exchange_HL_DE(state8080 *state)$/;"	f
+exchange_HL_st	emulador.c	/^void exchange_HL_st(state8080 *state)$/;"	f
 flags	emulador.h	/^typedef struct ConditionFlags flags;$/;"	t	typeref:struct:ConditionFlags
 get_HL_addr	emulador.c	/^uint16_t get_HL_addr(state8080 *state)$/;"	f
 get_PC_data	emulador.c	/^uint8_t get_PC_data(state8080 *state)$/;"	f
 get_bytes_addr	emulador.c	/^uint16_t get_bytes_addr(state8080 *state)$/;"	f
+halt	emulador.c	/^void halt(state8080 *state)$/;"	f
+halt	emulador.h	/^    halt;$/;"	m	struct:Machine
 inc_memory	emulador.c	/^void inc_memory(state8080 *state)$/;"	f
 inc_reg_pair	emulador.c	/^void inc_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f
 inc_register	emulador.c	/^void inc_register(state8080 *state, uint8_t *r)$/;"	f
 init_flag	emulador.c	/^flags* init_flag()$/;"	f
 init_machine	emulador.c	/^state8080* init_machine()$/;"	f
 init_reg	emulador.c	/^reg* init_reg()$/;"	f
+input	emulador.c	/^void input(state8080 *state, uint8_t data)$/;"	f
+interrupt	emulador.h	/^    interrupt;$/;"	m	struct:Machine
 is_bit_set	emulador.c	/^int is_bit_set(uint8_t byte, int bit)$/;"	f
+jmp	emulador.h	/^    uint8_t jmp:1;$/;"	m	struct:ConditionFlags
 joint	emulador.c	/^uint16_t joint(uint8_t rh, uint8_t rl)$/;"	f
+jump	emulador.c	/^void jump(state8080 *state)$/;"	f
+jump_HL_dir	emulador.c	/^void jump_HL_dir(state8080 *state)$/;"	f
 load_HL_dir	emulador.c	/^void load_HL_dir(state8080 *state)$/;"	f
 load_acc_dir	emulador.c	/^void load_acc_dir(state8080 *state)$/;"	f
 load_acc_indir	emulador.c	/^void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
 load_reg_pair_imed	emulador.c	/^void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
 main	dissemb.c	/^int main()$/;"	f
 main	emulador.c	/^int main()$/;"	f
+move_HL_SP	emulador.c	/^void move_HL_SP(state8080 *state)$/;"	f
 move_from_mem	emulador.c	/^void move_from_mem(state8080 *state, uint8_t *r)$/;"	f
 move_immediate	emulador.c	/^void move_immediate(state8080 *state, uint8_t *r)$/;"	f
 move_register	emulador.c	/^void move_register(uint8_t *r1, uint8_t *r2)$/;"	f
@@ -77,10 +92,17 @@ or_immediate	emulador.c	/^void or_immediate(state8080 *state)$/;"	f
 or_memory	emulador.c	/^void or_memory(state8080 *state)$/;"	f
 or_register	emulador.c	/^void or_register(state8080 *state, uint8_t r)$/;"	f
 or_thing	emulador.c	/^void or_thing(state8080 *state, uint8_t var)$/;"	f
+output	emulador.c	/^void output(state8080 *state, uint8_t *data)$/;"	f
 parity	emulador.c	/^int parity(uint8_t num)$/;"	f
+pop	emulador.c	/^void pop(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
+pop_psw	emulador.c	/^void pop_psw(state8080 *state)$/;"	f
 print_state	emulador.c	/^void print_state(state8080 *state)$/;"	f
+push	emulador.c	/^void push(state8080 *state, uint8_t rh, uint8_t rl)$/;"	f
+push_psw	emulador.c	/^void push_psw(state8080 *state)$/;"	f
 reg	emulador.h	/^typedef struct Registers reg;$/;"	t	typeref:struct:Registers
 registers	emulador.h	/^    reg *registers;$/;"	m	struct:Machine
+restart	emulador.c	/^void restart(state8080 *state, uint8_t opcode)$/;"	f
+ret_op	emulador.c	/^void ret_op(state8080 *state)$/;"	f
 rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f
 rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f
 rotate_left_carry	emulador.c	/^void rotate_left_carry(state8080 *state)$/;"	f

@@ -13,6 +13,7 @@ struct ConditionFlags
     uint8_t P:1;
     uint8_t CY:1;
     uint8_t AC:1;
+    uint8_t jmp:1;
 };
 
 typedef struct ConditionFlags flags;
@@ -37,10 +38,39 @@ struct Machine
 {
     flags *status_flags;
     reg *registers;
+
+    halt;
+    interrupt;
+
     uint8_t *RAM;
 };
 
 typedef struct Machine state8080;
+
+//STACK
+void push(state8080 *state, uint8_t rh, uint8_t rl)
+void push_psw(state8080 *state)
+void pop(state8080 *state, uint8_t *rh, uint8_t *rl)
+void pop_psw(state8080 *state)
+void exchange_HL_st(state8080 *state)
+void move_HL_SP(state8080 *state)
+
+//IO
+void input(state8080 *state, uint8_t data);
+void output(state8080 *state, uint8_t *data);
+void enable_inter(state8080 *state);
+void disable_inter(state8080 *state);
+void halt(state8080 *state);
+
+//BRANCH
+void jump(state8080 *state);
+void cond_jump(state8080 *state, uint8_t flag)  ;
+void call(state8080 *state);
+void cond_call(state8080 *state, uint8_t flag);
+void ret_op(state8080 *state);
+void cond_ret_op(state8080 *state, uint8_t flag);
+void restart(state8080 *state, uint8_t opcode);
+void jump_HL_dir(state8080 *state);
 
 //LOGICAL
 void and_thing(state8080 *state, uint8_t var);
@@ -123,6 +153,5 @@ uint8_t set_bit(uint8_t byte, uint8_t bit);
 //TEST
 void tests();
 void print_state(state8080 *state);
-
 
 #endif 

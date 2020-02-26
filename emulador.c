@@ -151,6 +151,7 @@ flags* init_flag()
     status_flags->S = 0;
     status_flags->AC = 0;
     status_flags->CY = 0;
+    status_flags->jmp = 0;
 
     return status_flags;
 }
@@ -161,6 +162,8 @@ state8080* init_machine()
 
     state->status_flags = init_flag();
     state->registers = init_reg();
+    state->halt = 0;
+    state->interrupt = 0;
 
     state->RAM = (uint8_t*)malloc(sizeof(uint8_t)*RAM_SIZE);
     return state;
@@ -517,6 +520,201 @@ void set_carry(state8080 *state)
 {
     state->status_flags->CY = 1;
 }
+
+//-------------------- BRANCH GROUP -------------------------
+
+//JMP addr
+//addr-1 because for every intruction loop the pc e increased by 1
+void jump(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+
+    uint16_t addr = joint(byte3, byte2);
+    state->registers->PC = addr;
+    state->status_flags->jmp = 1;
+}
+
+//Jcondition addr
+void cond_jump(state8080 *state, uint8_t flag)
+{
+    if(flag) jump(state);
+}
+
+//CALL addr
+void call(state8080 *state)
+{
+    uint16_t stack = state->registers->SP;
+    uint8_t pch, pcl;
+    
+    disjoint(state->registers->PC, &pch, &pcl);
+    push(state, pch, pcl);
+    jump(state);
+}
+
+//Condition addr
+void cond_call(state8080 *state, uint8_t flag)
+{
+    if(flag) call(state);
+}
+
+//RET
+void ret_op(state8080 *state)
+{
+    uint16_t stack = state->registers->SP;
+    uint8_t pch, pcl;
+    
+    disjoint(state->registers->PC, &pch, &pcl);
+
+    pop(state, &pch, &pcl);
+
+    state->registers->PC = (joint(pch, pcl));
+    state->status_flags->jmp = 1;
+}
+
+//Rcondition
+void cond_ret_op(state8080 *state, uint8_t flag)
+{
+    if(flag) ret_op(state);
+}
+
+//RST n
+void restart(state8080 *state, uint8_t opcode)
+{
+    uint16_t stack = state->registers->SP;
+    uint8_t pch, pcl;
+    disjoint(state->registers->PC, &pch, &pcl);
+
+    push(state, pch, pcl);
+
+    state->registers->PC = opcode << 3;
+    state->status_flags->jmp = 1;
+}
+
+//PCHL
+void jump_HL_dir(state8080 *state)
+{
+    uint8_t pch, pcl;
+    
+    disjoint(state->registers->PC, &pch, &pcl);
+    pcl = state->registers->L;
+    pch = state->registers->H;
+    
+    state->registers->PC = joint(pch, pcl);
+    state->status_flags->jmp = 1;
+}
+
+//--------------------STACK ---------------------------------
+
+//PUSH rp
+void push(state8080 *state, uint8_t rh, uint8_t rl)
+{
+    uint16_t stack = state->registers->SP;
+    
+    state->RAM[(stack-1)] = rh;
+    state->RAM[(stack-2)] = rl;
+
+    state->registers->SP -= 2;
+}
+
+//PUSH PSW
+void push_psw(state8080 *state)
+{
+    uint8_t psw = 0;
+
+    if(state->status_flags->CY) set_bit(psw, 0);
+    set_bit(psw, 1);
+    if(state->status_flags->P) set_bit(psw, 2);
+    if(state->status_flags->AC) set_bit(psw, 4);
+    if(state->status_flags->Z) set_bit(psw, 6);
+    if(state->status_flags->S) set_bit(psw, 7);
+
+    push(state, state->registers->A, psw);
+}
+
+//POP rp
+void pop(state8080 *state, uint8_t *rh, uint8_t *rl)
+{
+    uint16_t stack = state->registers->SP;
+    
+    *rl = state->RAM[(stack)];
+    *rh = state->RAM[(stack+1)];
+    
+    state->registers->SP += 2;
+}
+
+//POP PSW
+void pop_psw(state8080 *state)
+{
+    uint8_t reg_a, psw;
+    pop(state, &reg_a, &psw)
+
+    state->registers->A = reg_a;
+
+    if(is_bit_set(psw, 0)) state->status_flags->CY = 1;
+    else state->status_flags->CY = 0;
+
+    if(is_bit_set(psw, 2)) state->status_flags->P = 1;
+    else state->status_flags->P = 0;
+
+    if(is_bit_set(psw, 4)) state->status_flags->AC = 1;
+    else state->status_flags->AC = 0;
+
+    if(is_bit_set(psw, 6)) state->status_flags->Z = 1;
+    else state->status_flags->Z = 0;
+
+    if(is_bit_set(psw, 7)) state->status_flags->S = 1;
+    else state->status_flags->S = 0;
+}
+
+//XTHL
+void exchange_HL_st(state8080 *state)
+{
+    uint16_t stack = state->registers->SP;
+    swap(&state->registers->H, &state->RAM[stack]);
+    swap(&state->registers->L, &state->RAM[(stack+1)]);
+}
+
+//SPHL
+void move_HL_SP(state8080 *state)
+{
+    state->registers->SP = joint(state->registers->H, state->registers->L);
+}
+
+//--------------------- IO ----------------------
+//IN port
+void input(state8080 *state, uint8_t data)
+{
+    state->registers->A = data;
+}
+
+//OUT port
+void output(state8080 *state, uint8_t *data)
+{
+    *data = state->registers->A;
+}
+
+//EI
+void enable_inter(state8080 *state)
+{
+    state->interrupt = 1;
+}
+
+//DI
+void disable_inter(state8080 *state)
+{
+    state->interrupt = 0;
+}
+
+//HLT
+void halt(state8080 *state)
+{
+    state->halt = 1;
+}
+
 
 //-------------------- DATA TRANSFER -------------------------
 
