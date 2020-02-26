@@ -31,9 +31,19 @@ add_immediate_carry	emulador.c	/^void add_immediate_carry(state8080 *state)$/;"	
 add_memory	emulador.c	/^void add_memory(state8080 *state)$/;"	f
 add_memory_carry	emulador.c	/^void add_memory_carry(state8080 *state)$/;"	f
 add_reg_pair_HL	emulador.c	/^void add_reg_pair_HL(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
-add_register	emulador.c	/^void add_register(state8080 *state, uint8_t *r)$/;"	f
-add_register_carry	emulador.c	/^void add_register_carry(state8080 *state, uint8_t *r)$/;"	f
+add_register	emulador.c	/^void add_register(state8080 *state, uint8_t r)$/;"	f
+add_register_carry	emulador.c	/^void add_register_carry(state8080 *state, uint8_t r)$/;"	f
+and_immediate	emulador.c	/^void and_immediate(state8080 *state)$/;"	f
+and_memory	emulador.c	/^void and_memory(state8080 *state)$/;"	f
+and_register	emulador.c	/^void and_register(state8080 *state, uint8_t r)$/;"	f
+and_thing	emulador.c	/^void and_thing(state8080 *state, uint8_t var)$/;"	f
+cmp_immediate	emulador.c	/^void cmp_immediate(state8080 *state)$/;"	f
+cmp_memory	emulador.c	/^void cmp_memory(state8080 *state)$/;"	f
+cmp_register	emulador.c	/^void cmp_register(state8080 *state, uint8_t r)$/;"	f
+cmp_thing	emulador.c	/^void cmp_thing(state8080 *state, uint8_t var)$/;"	f
 command_maker	emulador.c	/^void command_maker(state8080 *state)$/;"	f
+complement_acc	emulador.c	/^void complement_acc(state8080 *state)$/;"	f
+complement_carry	emulador.c	/^void complement_carry(state8080 *state)$/;"	f
 dec_memory	emulador.c	/^void dec_memory(state8080 *state)$/;"	f
 dec_reg_pair	emulador.c	/^void dec_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f
 dec_register	emulador.c	/^void dec_register(state8080 *state, uint8_t *r)$/;"	f
@@ -63,10 +73,21 @@ move_immediate	emulador.c	/^void move_immediate(state8080 *state, uint8_t *r)$/;
 move_register	emulador.c	/^void move_register(uint8_t *r1, uint8_t *r2)$/;"	f
 move_to_mem	emulador.c	/^void move_to_mem(state8080 *state, uint8_t *r)$/;"	f
 move_to_mem_imed	emulador.c	/^void move_to_mem_imed(state8080 *state)$/;"	f
+or_immediate	emulador.c	/^void or_immediate(state8080 *state)$/;"	f
+or_memory	emulador.c	/^void or_memory(state8080 *state)$/;"	f
+or_register	emulador.c	/^void or_register(state8080 *state, uint8_t r)$/;"	f
+or_thing	emulador.c	/^void or_thing(state8080 *state, uint8_t var)$/;"	f
 parity	emulador.c	/^int parity(uint8_t num)$/;"	f
 print_state	emulador.c	/^void print_state(state8080 *state)$/;"	f
 reg	emulador.h	/^typedef struct Registers reg;$/;"	t	typeref:struct:Registers
 registers	emulador.h	/^    reg *registers;$/;"	m	struct:Machine
+rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f
+rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f
+rotate_left_carry	emulador.c	/^void rotate_left_carry(state8080 *state)$/;"	f
+rotate_right	emulador.c	/^void rotate_right(state8080 *state)$/;"	f
+rotate_right_carry	emulador.c	/^void rotate_right_carry(state8080 *state)$/;"	f
+set_bit	emulador.c	/^uint8_t set_bit(uint8_t byte, uint8_t bit)$/;"	f
+set_carry	emulador.c	/^void set_carry(state8080 *state)$/;"	f
 set_flags	emulador.c	/^uint8_t set_flags(state8080 *state, uint16_t result)$/;"	f
 state8080	emulador.h	/^typedef struct Machine state8080;$/;"	t	typeref:struct:Machine
 status_flags	emulador.h	/^    flags *status_flags;$/;"	m	struct:Machine
@@ -77,10 +98,14 @@ sub_immediate	emulador.c	/^void sub_immediate(state8080 *state)$/;"	f
 sub_immediate_borrow	emulador.c	/^void sub_immediate_borrow(state8080 *state)$/;"	f
 sub_memory	emulador.c	/^void sub_memory(state8080 *state)$/;"	f
 sub_memory_borrow	emulador.c	/^void sub_memory_borrow(state8080 *state)$/;"	f
-sub_register	emulador.c	/^void sub_register(state8080 *state, uint8_t *r)$/;"	f
-sub_register_borrow	emulador.c	/^void sub_register_borrow(state8080 *state, uint8_t *r)$/;"	f
+sub_register	emulador.c	/^void sub_register(state8080 *state, uint8_t r)$/;"	f
+sub_register_borrow	emulador.c	/^void sub_register_borrow(state8080 *state, uint8_t r)$/;"	f
 swap	emulador.c	/^void swap(uint8_t *one, uint8_t *two)$/;"	f
 tests	emulador.c	/^void tests()$/;"	f
 twoscomp	emulador.c	/^uint8_t twoscomp(uint8_t num)$/;"	f
+xor_immediate	emulador.c	/^void xor_immediate(state8080 *state)$/;"	f
+xor_memory	emulador.c	/^void xor_memory(state8080 *state)$/;"	f
+xor_register	emulador.c	/^void xor_register(state8080 *state, uint8_t r)$/;"	f
+xor_thing	emulador.c	/^void xor_thing(state8080 *state, uint8_t var)$/;"	f
 ~þ	invaders.h	/^Ã‚/;"	v
 ~þ	invaders2.h	/^Ã‚/;"	v

@@ -11,16 +11,13 @@ void tests()
     state8080* state = init_machine();
     
     state->registers->A = 0x0f;
-    state->registers->B = 0xf1;
+    state->registers->B = 0x1f;
     
     print_state(state);
 
-    state->registers->B = twoscomp(0xf1);
-    add_register(state, &state->registers->B);
+    cmp_register(state, state->registers->B);
     
     print_state(state);
-
-
 }
 
 void print_state(state8080 *state)
@@ -93,6 +90,11 @@ void swap(uint8_t *one, uint8_t *two)
 int is_bit_set(uint8_t byte, int bit)
 {
     return byte & (1 << bit);
+}
+
+uint8_t set_bit(uint8_t byte, uint8_t bit)
+{
+    return byte | 0x01 << bit; 
 }
 
 int parity(uint8_t num)
@@ -168,9 +170,9 @@ state8080* init_machine()
 //---------------------ARITHMETIC---------------------------
 
 //ADD r
-void add_register(state8080 *state, uint8_t *r)
+void add_register(state8080 *state, uint8_t r)
 {
-    uint16_t result = state->registers->A + *r;
+    uint16_t result = state->registers->A + r;
     state->registers->A = set_flags(state, result);
 }
 
@@ -180,7 +182,7 @@ void add_memory(state8080 *state)
     uint16_t addr = get_HL_addr(state);
     uint8_t data = state->RAM[addr];
 
-    add_register(state, &data);
+    add_register(state, data);
 }
 
 //ADI data
@@ -189,11 +191,11 @@ void add_immediate(state8080 *state)
     state->registers->PC++;
     uint8_t data = get_PC_data(state);
 
-    add_register(state, &data);
+    add_register(state, data);
 }
 
 //ADC r
-void add_register_carry(state8080 *state, uint8_t *r)
+void add_register_carry(state8080 *state, uint8_t r)
 {
     add_register(state, r);
     state->registers->A += state->status_flags->CY;
@@ -215,9 +217,9 @@ void add_immediate_carry(state8080 *state)
 
 //TODO this is retarded
 //SUB r
-void sub_register(state8080 *state, uint8_t *r)
+void sub_register(state8080 *state, uint8_t r)
 {
-    *r = twoscomp(*r);
+    r = twoscomp(r);
     add_register(state, r);
 }
 
@@ -227,7 +229,7 @@ void sub_memory(state8080 *state)
     uint16_t addr = get_HL_addr(state);
     uint8_t data = state->RAM[addr];
 
-    sub_register(state, &data);
+    sub_register(state, data);
 }
 
 //SUI data
@@ -236,11 +238,11 @@ void sub_immediate(state8080 *state)
     state->registers->PC++;
     uint8_t data = get_PC_data(state);
 
-    sub_register(state, &data);
+    sub_register(state, data);
 }
 
 //SBB r
-void sub_register_borrow(state8080 *state, uint8_t *r)
+void sub_register_borrow(state8080 *state, uint8_t r)
 {
     sub_register(state, r);
     state->registers->A -= state->status_flags->CY;
@@ -322,7 +324,200 @@ void add_reg_pair_HL(state8080 *state, uint8_t *rh, uint8_t *rl)
     disjoint(result, &state->registers->H, &state->registers->L);
 }
 
-//
+//-------------------- LOGICAL ------------------------------
+
+//general and thing
+void and_thing(state8080 *state, uint8_t var)
+{
+    uint8_t result = state->registers->A & var;
+    set_flags(state, result);
+    state->status_flags->CY = 0;
+    state->registers->A = result;
+}
+
+//ANA r
+void and_register(state8080 *state, uint8_t r)
+{
+    and_thing(state, r);
+}
+
+//ANA M
+void and_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    and_thing(state, data);
+}
+
+//ANI data
+void and_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    and_thing(state, data);
+}
+
+//general xor thing
+void xor_thing(state8080 *state, uint8_t var)
+{
+    uint8_t result = state->registers->A ^ var;
+    set_flags(state, result);
+    state->status_flags->CY = 0;
+    state->status_flags->AC = 0;
+    state->registers->A = result;
+}
+
+//XRA r
+void xor_register(state8080 *state, uint8_t r)
+{
+    xor_thing(state, r);
+}
+
+//XRA M
+void xor_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    xor_thing(state, data);
+}
+
+//XRI data
+void xor_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    xor_thing(state, data);
+}
+
+//general or thing
+void or_thing(state8080 *state, uint8_t var)
+{
+    uint8_t result = state->registers->A | var;
+    set_flags(state, result);
+    state->status_flags->CY = 0;
+    state->status_flags->AC = 0;
+    state->registers->A = result;
+}
+
+//ORA r
+void or_register(state8080 *state, uint8_t r)
+{
+    or_thing(state, r);
+}
+
+//ORA M
+void or_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    or_thing(state, data);
+}
+
+//ORI data
+void or_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    or_thing(state, data);
+}
+
+//TODO test this
+//general or thing
+void cmp_thing(state8080 *state, uint8_t var)
+{
+    uint16_t result = state->registers->A - var;
+    set_flags(state, result);
+}
+
+//CMP r
+void cmp_register(state8080 *state, uint8_t r)
+{
+    cmp_thing(state, r);
+}
+
+//CMP M
+void cmp_memory(state8080 *state)
+{
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    cmp_thing(state, data);
+}
+
+//CPI data
+void cmp_immediate(state8080 *state)
+{
+    state->registers->PC++;
+    uint8_t data = get_PC_data(state);
+
+    cmp_thing(state, data);
+}
+
+
+//general rotate byte
+void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)
+{
+    uint8_t result = (lone_bit | shifted);    
+    state->status_flags->CY = !(0 == cy_set);    
+    state->registers->A = result;
+}
+
+//RLC
+void rotate_left(state8080 *state)
+{
+    uint8_t var = state->registers->A;
+    uint8_t lone_bit = (var >> 7);
+    rotate_byte(state, lone_bit, lone_bit, (var << 1));
+}
+
+//RRC 
+void rotate_right(state8080 *state)
+{
+    uint8_t var = state->registers->A;
+    uint8_t lone_bit = (var << 7);
+    rotate_byte(state, lone_bit, lone_bit, (var >> 1));
+}
+
+//RAL
+void rotate_left_carry(state8080 *state)
+{
+    uint8_t var = state->registers->A;
+    uint8_t cy = state->status_flags->CY;
+    rotate_byte(state, (var >> 7), cy, (var << 1));
+}
+
+//RAR
+void rotate_right_carry(state8080 *state)
+{
+    uint8_t var = state->registers->A;
+    uint8_t cy = state->status_flags->CY;
+    rotate_byte(state, (var << 7), (cy << 7), (var >> 1));
+}
+
+//CMA
+void complement_acc(state8080 *state)
+{
+    state->registers->A = ~(state->registers->A);
+}
+
+//CMC
+void complement_carry(state8080 *state)
+{
+    state->status_flags->CY = ~(state->status_flags->CY);
+}
+
+//STC
+void set_carry(state8080 *state)
+{
+    state->status_flags->CY = 1;
+}
+
 //-------------------- DATA TRANSFER -------------------------
 
 //MOV r1, r2
