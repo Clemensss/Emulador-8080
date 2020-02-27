@@ -17,11 +17,13 @@ E	emulador.h	/^    uint8_t E;    $/;"	m	struct:Registers
 EMULATOR_H_	emulador.h	2;"	d
 H	emulador.h	/^    uint8_t H;    $/;"	m	struct:Registers
 L	emulador.h	/^    uint8_t L;    $/;"	m	struct:Registers
+MAC_H_	machine.h	2;"	d
 Machine	emulador.h	/^struct Machine$/;"	s
 P	emulador.h	/^    uint8_t P:1;$/;"	m	struct:ConditionFlags
 PC	emulador.h	/^    uint16_t PC;    $/;"	m	struct:Registers
 RAM	emulador.h	/^    uint8_t *RAM;$/;"	m	struct:Machine
 RAM_SIZE	emulador.h	8;"	d
+REG	emulador.h	9;"	d
 Registers	emulador.h	/^struct Registers$/;"	s
 S	emulador.h	/^    uint8_t S:1;$/;"	m	struct:ConditionFlags
 SP	emulador.h	/^    uint16_t SP;    $/;"	m	struct:Registers
@@ -42,7 +44,7 @@ cmp_immediate	emulador.c	/^void cmp_immediate(state8080 *state)$/;"	f
 cmp_memory	emulador.c	/^void cmp_memory(state8080 *state)$/;"	f
 cmp_register	emulador.c	/^void cmp_register(state8080 *state, uint8_t r)$/;"	f
 cmp_thing	emulador.c	/^void cmp_thing(state8080 *state, uint8_t var)$/;"	f
-command_maker	emulador.c	/^void command_maker(state8080 *state)$/;"	f
+command_maker	machine.c	/^void command_maker(state8080 *state)$/;"	f
 complement_acc	emulador.c	/^void complement_acc(state8080 *state)$/;"	f
 complement_carry	emulador.c	/^void complement_carry(state8080 *state)$/;"	f
 cond_call	emulador.c	/^void cond_call(state8080 *state, uint8_t flag)$/;"	f
@@ -62,7 +64,7 @@ get_HL_addr	emulador.c	/^uint16_t get_HL_addr(state8080 *state)$/;"	f
 get_PC_data	emulador.c	/^uint8_t get_PC_data(state8080 *state)$/;"	f
 get_bytes_addr	emulador.c	/^uint16_t get_bytes_addr(state8080 *state)$/;"	f
 halt	emulador.c	/^void halt(state8080 *state)$/;"	f
-halt	emulador.h	/^    halt;$/;"	m	struct:Machine
+halt	emulador.h	/^    uint8_t halt:1;$/;"	m	struct:Machine
 inc_memory	emulador.c	/^void inc_memory(state8080 *state)$/;"	f
 inc_reg_pair	emulador.c	/^void inc_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f
 inc_register	emulador.c	/^void inc_register(state8080 *state, uint8_t *r)$/;"	f
@@ -70,7 +72,7 @@ init_flag	emulador.c	/^flags* init_flag()$/;"	f
 init_machine	emulador.c	/^state8080* init_machine()$/;"	f
 init_reg	emulador.c	/^reg* init_reg()$/;"	f
 input	emulador.c	/^void input(state8080 *state, uint8_t data)$/;"	f
-interrupt	emulador.h	/^    interrupt;$/;"	m	struct:Machine
+interrupt	emulador.h	/^    uint8_t interrupt:1;$/;"	m	struct:Machine
 is_bit_set	emulador.c	/^int is_bit_set(uint8_t byte, int bit)$/;"	f
 jmp	emulador.h	/^    uint8_t jmp:1;$/;"	m	struct:ConditionFlags
 joint	emulador.c	/^uint16_t joint(uint8_t rh, uint8_t rl)$/;"	f
@@ -80,8 +82,10 @@ load_HL_dir	emulador.c	/^void load_HL_dir(state8080 *state)$/;"	f
 load_acc_dir	emulador.c	/^void load_acc_dir(state8080 *state)$/;"	f
 load_acc_indir	emulador.c	/^void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
 load_reg_pair_imed	emulador.c	/^void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
+load_rom	main.c	/^void load_rom(state8080 *state, char *file_name)$/;"	f
+machine_loop	main.c	/^void machine_loop(state8080 *state)$/;"	f
 main	dissemb.c	/^int main()$/;"	f
-main	emulador.c	/^int main()$/;"	f
+main	main.c	/^int main(int argc, char **argv)$/;"	f
 move_HL_SP	emulador.c	/^void move_HL_SP(state8080 *state)$/;"	f
 move_from_mem	emulador.c	/^void move_from_mem(state8080 *state, uint8_t *r)$/;"	f
 move_immediate	emulador.c	/^void move_immediate(state8080 *state, uint8_t *r)$/;"	f
@@ -103,6 +107,7 @@ reg	emulador.h	/^typedef struct Registers reg;$/;"	t	typeref:struct:Registers
 registers	emulador.h	/^    reg *registers;$/;"	m	struct:Machine
 restart	emulador.c	/^void restart(state8080 *state, uint8_t opcode)$/;"	f
 ret_op	emulador.c	/^void ret_op(state8080 *state)$/;"	f
+rom_reader	main.c	/^uint8_t* rom_reader(char *file_name, int *file_size)$/;"	f
 rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f
 rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f
 rotate_left_carry	emulador.c	/^void rotate_left_carry(state8080 *state)$/;"	f

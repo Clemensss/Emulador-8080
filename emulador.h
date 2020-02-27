@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #define RAM_SIZE 16000
+#define REG state->registers
 struct ConditionFlags
 {
     uint8_t Z:1;
@@ -39,8 +40,8 @@ struct Machine
     flags *status_flags;
     reg *registers;
 
-    halt;
-    interrupt;
+    uint8_t halt:1;
+    uint8_t interrupt:1;
 
     uint8_t *RAM;
 };
@@ -48,12 +49,12 @@ struct Machine
 typedef struct Machine state8080;
 
 //STACK
-void push(state8080 *state, uint8_t rh, uint8_t rl)
-void push_psw(state8080 *state)
-void pop(state8080 *state, uint8_t *rh, uint8_t *rl)
-void pop_psw(state8080 *state)
-void exchange_HL_st(state8080 *state)
-void move_HL_SP(state8080 *state)
+void push(state8080 *state, uint8_t rh, uint8_t rl);
+void push_psw(state8080 *state);
+void pop(state8080 *state, uint8_t *rh, uint8_t *rl);
+void pop_psw(state8080 *state);
+void exchange_HL_st(state8080 *state);
+void move_HL_SP(state8080 *state);
 
 //IO
 void input(state8080 *state, uint8_t data);
@@ -127,10 +128,15 @@ void move_register(uint8_t *r1, uint8_t * r2);
 void move_from_mem(state8080 *state, uint8_t *r1);
 void move_to_mem(state8080 *state, uint8_t *r1);
 void move_to_mem_imed(state8080 *state);
+void move_immediate(state8080 *state, uint8_t *r);
 void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl);
 void load_acc_dir(state8080 *state);
 void store_acc_dir(state8080 *state);
 void load_HL_dir(state8080 *state);
+void store_HL_dir(state8080 *state);
+void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl);
+void store_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl);
+void exchange_HL_DE(state8080 *state);
 
 //INIT
 state8080* init_machine();
