@@ -126,7 +126,7 @@ void command_maker(state8080 *state)
 
 	case 0x1a: //LDAX D	1	A <- (DE)
 
-	    load_acc_indir(state, &state->registers->D,&state->registers->E);
+	    load_acc_indir(state, &state->registers->D, &state->registers->E);
 	    break;
 
 	case 0x1b: //DCX D	1	DE = DE-1
@@ -185,6 +185,7 @@ void command_maker(state8080 *state)
 
 	case 0x27: //DAA 1	    special
 	    break;
+
 
 	case 0x28: //-	    
 	    break;
@@ -916,8 +917,8 @@ void command_maker(state8080 *state)
 	case 0xd3: //OUT D8	2	special
 
 	   // output(state);
-	   //TODO
-	   break;
+	    REG->PC++; 
+	    break;
 
 	case 0xd4: //CNC adr	3	if NCY, CALL adr
 
@@ -955,6 +956,7 @@ void command_maker(state8080 *state)
 	case 0xdb: //IN D8	2	special
 
 	    //TODO
+	    REG->PC++; 
 	    break;
 
 	case 0xdc: //CC adr	3	if CY, CALL adr

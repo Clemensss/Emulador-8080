@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 
 void machine_loop(state8080 *state)
 {
-    uint16_t inst = 0;
+    int inst = 0;
     short log = 1;
     uint16_t max = 0;
     while(!state->halt)
@@ -34,7 +34,10 @@ void machine_loop(state8080 *state)
 	if(inst >= max)
 	{
 	    print_state(state);
+
+	    printf("inst: %d\n", inst);
 	    log = 1;
+	    
 	    inst = 0;
 	}
 
