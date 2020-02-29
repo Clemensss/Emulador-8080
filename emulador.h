@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define RAM_SIZE 16000
+#define RAM_SIZE 65536 
 #define REG state->registers
 struct ConditionFlags
 {

@@ -1,9 +1,10 @@
 #include "machine.h"
 
-void command_maker(state8080 *state)
+void command_maker(state8080 *state, port *p)
 {
     uint8_t opcode = state->RAM[state->registers->PC];
     uint8_t sph, spl;
+    uint16_t mem;
 
     switch(opcode)
     {
@@ -532,6 +533,7 @@ void command_maker(state8080 *state)
 	    break;
 
 	case 0x77: //MOV M,A	1	(HL) <- A
+
 	    move_to_mem(state, &REG->A);
 	    break;
 
@@ -886,12 +888,41 @@ void command_maker(state8080 *state)
 	    cond_call(state, state->status_flags->Z);
 	    break;
 
-	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=adr
+	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=ad
+	    
+	    mem = get_bytes_addr(state);
+	    if(mem  == 5)
+	    {
+		if(REG->C == 9)	
+		{
+		    uint16_t thing = joint(REG->D, REG->E);
+		    printf("thin %hd\n", thing);
+		    thing += 0x300;
+		    char *str = &state->RAM[thing];
+		    while(*str != '$')
+		    {
+			printf("%c", *str);
+			str++;
+		    }
+		    printf("\n");
+		}
+	    }
+	    else if (0 ==  mem)    
+	    {    
+		printf("ehehehehehehehehe\n");
+		exit(0);    
+	    } 
+	    else
+	    {
+		REG->PC -= 2;
+		call(state);
+	    }
 
-	    call(state);
 	    break;
 
 	case 0xce: //ACI D8	2   Z, S, P, CY, AC A <- A + data + CY
+
+	    add_immediate_carry(state);
 	    break; 
 
 	case 0xcf: //RST 1	1	CALL $8
@@ -1072,6 +1103,7 @@ void command_maker(state8080 *state)
 
 	case 0xf3: //DI  1	    special
 	    //TODO
+	    disable_inter(state);
 	    break;
 
 	case 0xf4: //CP adr	3	if P, PC <- adr
@@ -1110,7 +1142,9 @@ void command_maker(state8080 *state)
 	    break;
 
 	case 0xfb: //EI  1	    special
+
 	    //TODO
+	    enable_inter(state);
 	    break;
 
 	case 0xfc: //CM adr	3	if M, CALL adr
@@ -1134,7 +1168,7 @@ void command_maker(state8080 *state)
 	    printf("opcode not found: %#04x\n", opcode);
     }
     
-    printf("opcode %#04x\n", opcode);
+    //printf("opcode %#04x\n", opcode);
     if(state->status_flags->jmp) state->status_flags->jmp = 0;
     else REG->PC++;
 }

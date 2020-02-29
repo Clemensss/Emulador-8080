@@ -13,6 +13,7 @@ int main(int argc, char **argv)
     state8080 *state = init_machine();
     load_rom(state, argv[1]);
     REG->SP = 0xf000;
+    
     machine_loop(state);
     return 0;
 }
@@ -28,8 +29,7 @@ void machine_loop(state8080 *state)
 	
 	inst++;
 	
-	
-	//if(log)print_state(state);
+	if(log)print_state(state);
 	
 	if(inst >= max)
 	{

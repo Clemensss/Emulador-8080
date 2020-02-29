@@ -573,7 +573,7 @@ void ret_op(state8080 *state)
     state->status_flags->jmp = 1;
     
     REG->PC += 3;
-    printf("RET PC %#04x\n", REG->PC);
+    //printf("RET PC %#04x\n", REG->PC);
 }
 
 //Rcondition
