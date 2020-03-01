@@ -1,11 +1,12 @@
-#include "machine.h"
+#include "hardware.h"
+#include "emulador.h"
+
 
 void command_maker(state8080 *state, port *p)
 {
-    uint8_t opcode = state->RAM[state->registers->PC];
     uint8_t sph, spl;
     uint16_t mem;
-
+    uint8_t opcode = state->RAM[REG->PC];
     switch(opcode)
     {
 	case 0x00: //NOP 1	    
@@ -988,6 +989,7 @@ void command_maker(state8080 *state, port *p)
 
 	    //TODO
 	    REG->PC++; 
+	    input(state, p, get_PC_data(state));
 	    break;
 
 	case 0xdc: //CC adr	3	if CY, CALL adr

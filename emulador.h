@@ -7,6 +7,8 @@
 
 #define RAM_SIZE 65536 
 #define REG state->registers
+
+
 struct ConditionFlags
 {
     uint8_t Z:1;
@@ -48,6 +50,36 @@ struct Machine
 
 typedef struct Machine state8080;
 
+//PORTS
+struct Input
+{
+    uint8_t port0;
+    uint8_t port1;
+    uint8_t port2;
+    uint8_t port3;
+};
+
+typedef struct Input i_port;
+
+struct Output
+{
+    uint8_t port2;
+    uint8_t port3;
+    uint8_t port4;
+    uint8_t port5;
+    uint8_t port6;
+};
+typedef struct Output o_port;
+
+struct Port
+{
+    i_port *input;
+    o_port *output;
+};
+
+typedef struct Port port;
+
+
 //STACK
 void push(state8080 *state, uint8_t rh, uint8_t rl);
 void push_psw(state8080 *state);
@@ -57,7 +89,7 @@ void exchange_HL_st(state8080 *state);
 void move_HL_SP(state8080 *state);
 
 //IO
-void input(state8080 *state, uint8_t data);
+void input(state8080 *state, port *p, uint8_t data);
 void output(state8080 *state, uint8_t *data);
 void enable_inter(state8080 *state);
 void disable_inter(state8080 *state);
@@ -160,4 +192,5 @@ uint8_t set_bit(uint8_t byte, uint8_t bit);
 void tests();
 void print_state(state8080 *state);
 
+uint8_t read_i_port(port *i, uint8_t port);
 #endif 

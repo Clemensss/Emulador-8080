@@ -6,6 +6,8 @@ TODO:
 
     write all the in out ports for the arcade
 
+    write input
+
     try to organize the machine
 
     write the interrupt handler

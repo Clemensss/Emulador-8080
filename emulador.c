@@ -573,6 +573,7 @@ void ret_op(state8080 *state)
     state->status_flags->jmp = 1;
     
     REG->PC += 3;
+
     //printf("RET PC %#04x\n", REG->PC);
 }
 
@@ -688,9 +689,9 @@ void move_HL_SP(state8080 *state)
 
 //--------------------- IO ----------------------
 //IN port
-void input(state8080 *state, uint8_t data)
+void input(state8080 *state, port *p, uint8_t data)
 {
-    state->registers->A = data;
+    state->registers->A = read_i_port(p, data);
 }
 
 //OUT port

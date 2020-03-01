@@ -1,35 +1,30 @@
-#ifdef HARDWARE_H
-#define HARDWARE_H
+#ifndef HARDWARE_H_
+#define HARDWARE_H_
 
-#include "emulator.h" 
-#include "machine.h" 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <string.h>
 #include <time.h> 
 
-struct Input
-{
-    uint8_t port0;
-    uint8_t port1;
-    uint8_t port2;
-    uint8_t port3;
-};
+#include <SDL2/SDL.h>
+#include "emulador.h" 
+#include "display.h"
+//porting
+port* init_port();
+void generate_interrupt(state8080 *state, port *p, SDL_Renderer **rend);
+uint8_t read_i_port(port *i, uint8_t port);
+uint16_t write_o_port(port *o, uint8_t port, uint8_t data);
+void key_input(SDL_Event event, state8080 *state, port *p);
 
-typedef struct Input i_port;
+//display
+void draw_space(uint8_t *arr, SDL_Renderer **rend, int y, int d);
+int initdisplay(SDL_Window **window, SDL_Renderer **rend);
+void prepare_scene(SDL_Renderer **rend);
+void stop_sdl(SDL_Window **wind, SDL_Renderer **rend);
 
-struct Output
-{
-    uint8_t port2;
-    uint8_t port3;
-    uint8_t port4;
-    uint8_t port5;
-    uint8_t port6;
-};
-typedef struct Ouput o_port;
 
-struct Port
-{
-    i_port *input;
-    o_port *output;
-};
-
-typedef struct Port port;
+//machine
+void command_maker(state8080 *state, port *p);
 #endif 
