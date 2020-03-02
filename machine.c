@@ -7,6 +7,15 @@ void command_maker(state8080 *state, port *p)
     uint8_t sph, spl;
     uint16_t mem;
     uint8_t opcode = state->RAM[REG->PC];
+
+    if(REG->PC > 0x2000)
+    {
+	printf("opcode: %#04x\n", opcode);
+	print_state(state);
+	state->halt = 1;
+	return;
+    }
+
     switch(opcode)
     {
 	case 0x00: //NOP 1	    
@@ -133,7 +142,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x1b: //DCX D	1	DE = DE-1
 
-	    dec_reg_pair(&REG->B, &REG->C);
+	    dec_reg_pair(&REG->D, &REG->E);
 	    break;
 
 	case 0x1c: //INR E	1   Z, S, P, AC	E <-E+1
@@ -143,6 +152,8 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x1d: //DCR E	1   Z, S, P, AC	E <- E-1
 	    dec_register(state, &REG->E);
+	    break;
+
 	case 0x1e: //MVI E,D8    2	    E <- byte 2
 
 	    move_immediate(state, &state->registers->E);
@@ -177,7 +188,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x25: //DCR H	1   Z, S, P, AC	H <- H-1
 
-	    dec_register(state, &REG->D);
+	    dec_register(state, &REG->H);
 	    break;
 
 	case 0x26: //MVI H,D8    2	    H <- byte 2
@@ -204,7 +215,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x2b: //DCX H	1	HL = HL-1
 	    
-	    dec_reg_pair(&REG->B, &REG->C);
+	    dec_reg_pair(&REG->H, &REG->L);
 	    break;
 
 	case 0x2c: //INR L	1   Z, S, P, AC	L <- L+1
@@ -299,7 +310,7 @@ void command_maker(state8080 *state, port *p)
 	    
 	case 0x3d: //DCR A	1   Z, S, P, AC	A <- A-1
 
-	    dec_register(state, &REG->D);
+	    dec_register(state, &REG->A);
 	    break;
 
 	case 0x3e: //MVI A,D8    2	    A <- byte 2
@@ -313,7 +324,7 @@ void command_maker(state8080 *state, port *p)
 	    break;
 
 	case 0x40: //MOV B,B	1	B <- B
-	    move_register(&state->registers->B, &state->registers->A);
+	    move_register(&state->registers->B, &state->registers->B);
 	    break;
 
 	case 0x41: //MOV B,C	1	B <- C
@@ -863,7 +874,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xc7: //RST 0	1	CALL $0
 	    
-	    restart(state, 2);
+	    restart(state, 0);
 	    break;
 
 	case 0xc8: //RZ  1	    if Z, RET
@@ -891,34 +902,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=ad
 	    
-	    mem = get_bytes_addr(state);
-	    if(mem  == 5)
-	    {
-		if(REG->C == 9)	
-		{
-		    uint16_t thing = joint(REG->D, REG->E);
-		    printf("thin %hd\n", thing);
-		    thing += 0x300;
-		    char *str = &state->RAM[thing];
-		    while(*str != '$')
-		    {
-			printf("%c", *str);
-			str++;
-		    }
-		    printf("\n");
-		}
-	    }
-	    else if (0 ==  mem)    
-	    {    
-		printf("ehehehehehehehehe\n");
-		exit(0);    
-	    } 
-	    else
-	    {
-		REG->PC -= 2;
-		call(state);
-	    }
-
+	    call(state);
 	    break;
 
 	case 0xce: //ACI D8	2   Z, S, P, CY, AC A <- A + data + CY
@@ -928,7 +912,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xcf: //RST 1	1	CALL $8
 	    
-	    restart(state, 2);
+	    restart(state, 1);
 	    break;
 
 	case 0xd0: //RNC 1	    if NCY, RET
@@ -938,7 +922,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xd1: //POP D	1	E <- (sp); D <- (sp+1); sp <- sp+2
 
-	    pop(state, &REG->B, &REG->C);
+	    pop(state, &REG->D, &REG->E);
 	    break;
 
 	case 0xd2: //JNC adr	3	if NCY, PC<-adr
@@ -989,7 +973,6 @@ void command_maker(state8080 *state, port *p)
 
 	    //TODO
 	    REG->PC++; 
-	    input(state, p, get_PC_data(state));
 	    break;
 
 	case 0xdc: //CC adr	3	if CY, CALL adr

@@ -1,6 +1,6 @@
 #include "general.h"
-
-int threaded_main(void*);
+#include <stdlib.h>
+void delay(int milliseconds);
 
 void machine_loop(state8080 *state, port *p, SDL_Window **window, SDL_Renderer **rend);
 void load_rom(state8080 *state, char *file_name);
@@ -23,17 +23,28 @@ int main(int argc, char *argv[])
     load_rom(state, argv[1]);
 
     port *p = init_port();
-
     SDL_Window *window; 
     SDL_Renderer *rend;
 
     initdisplay(&window, &rend);
     prepare_scene(&rend);
+
     machine_loop(state, p, &window, &rend);
     stop_sdl(&window, &rend);
     
     return 0;
 
+}
+
+void delay(int milliseconds)
+{
+    long pause;
+    clock_t now,then;
+
+    pause = milliseconds*(CLOCKS_PER_SEC/1000);
+    now = then = clock();
+    while( (now-then) < pause )
+	now = clock();
 }
 
 void machine_loop(state8080 *state, port *p,
@@ -45,66 +56,61 @@ void machine_loop(state8080 *state, port *p,
 
     SDL_Event event;
     
-    short it = 2;
+    short it = 1;
 
     int ms = 8;
-    int stop = 1; 
-    int ms_s = clock() * 1000;
-    int end = ms_s + ms;
+
+
+    int ms_s = 0;
+
+    int msec = 0, trigger = 8; /* 10ms */
+    clock_t before = clock();
+
 
     while(!state->halt)
     {
 	while(!state->halt)
 	{
 
+	    msec = 0, trigger = 8; /* 10ms */
+	    before = clock();
+
+	    while (msec < trigger)
+	    {
+		print_state(state);
+		command_maker(state, p);	
+		if(state->halt) break;
+		clock_t difference = clock() - before;
+		msec = difference * 1000 / CLOCKS_PER_SEC;
+	    }
+
+	    if(it) 
+	    {
+		it = 0;
+		draw_space(&state->RAM[9216], rend, 0, 128);
+	    }
+	    else 
+	    {
+		it = 1;
+		draw_space(&state->RAM[13312],rend, 128, 224);
+	    }
+
+	    restart(state, it+1);
+	    state->status_flags->jmp = 0;
+
+	    
+	    
+
 	    if(SDL_PollEvent(&event)) 
 	    {
-		if (event.type == SDL_QUIT) stop = 0;
 		key_input(event, state, p);
 	    }
 	    else
 	    {
-		ms_s = clock() * 1000;
-		
-		if(ms_s >= end)
-		{
-		    int mem;
-
-		    if(it-1) 
-		    {
-			restart(state, it);
-			it = 1;
-			draw_space(&state->RAM[0x2400], rend, 0, 128);
-		    }
-		    else 
-		    {
-			restart(state, it);
-			it = 2;
-			draw_space(&state->RAM[0x2400+0x1000],rend, 128, 244);
-		    }
-		    
-		    
-
-		    ms_s = clock() * 1000;
-		    end - ms_s + ms;
-		}
-		
-		command_maker(state, p);
-		/*if(log)print_state(state);
-		if(inst >= max)
-		{
-		    print_state(state);
-		    printf("inst: %d\n", inst);
-		    log = 1;
-		    inst = 0;
-		}
-		if(log)
-		{
-		    scanf("%hd", &max);
-		    log = 0;
-		}*/
-		print_state(state);
+		//p = init_port();
 	    }
+
+
 	}
     }
 }

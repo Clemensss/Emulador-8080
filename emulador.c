@@ -141,7 +141,7 @@ reg* init_reg()
 
 flags* init_flag()
 {
-    flags* status_flags = (flags*)malloc(sizeof(reg));
+    flags* status_flags = (flags*)malloc(sizeof(flags));
     status_flags->Z = 0;
     status_flags->P = 0;
     status_flags->S = 0;
@@ -158,10 +158,17 @@ state8080* init_machine()
 
     state->status_flags = init_flag();
     state->registers = init_reg();
+
     state->halt = 0;
     state->interrupt = 0;
 
     state->RAM = (uint8_t*)malloc(sizeof(uint8_t)*RAM_SIZE);
+
+    for(int i = 0; i < RAM_SIZE; i++)
+    {
+	state->RAM[i] = 0;
+    }
+    
     return state;
 }
 
@@ -542,6 +549,7 @@ void cond_jump(state8080 *state, uint8_t flag)
 }
 
 //CALL addr
+//TODO check stack
 void call(state8080 *state)
 {
     uint16_t stack = state->registers->SP;
@@ -560,6 +568,7 @@ void cond_call(state8080 *state, uint8_t flag)
 }
 
 //RET
+//TODO check pc
 void ret_op(state8080 *state)
 {
     uint16_t stack = state->registers->SP;
@@ -572,7 +581,7 @@ void ret_op(state8080 *state)
     state->registers->PC = (joint(pch, pcl));
     state->status_flags->jmp = 1;
     
-    REG->PC += 3;
+    REG->PC += 2;
 
     //printf("RET PC %#04x\n", REG->PC);
 }
@@ -602,7 +611,6 @@ void jump_HL_dir(state8080 *state)
 {
     uint8_t pch, pcl;
     
-    disjoint(state->registers->PC, &pch, &pcl);
     pcl = state->registers->L;
     pch = state->registers->H;
     
@@ -628,12 +636,12 @@ void push_psw(state8080 *state)
 {
     uint8_t psw = 0;
 
-    if(state->status_flags->CY) set_bit(psw, 0);
-    set_bit(psw, 1);
-    if(state->status_flags->P) set_bit(psw, 2);
-    if(state->status_flags->AC) set_bit(psw, 4);
-    if(state->status_flags->Z) set_bit(psw, 6);
-    if(state->status_flags->S) set_bit(psw, 7);
+    if(state->status_flags->CY) psw = set_bit(psw, 0);
+    psw = set_bit(psw, 1);
+    if(state->status_flags->P)psw =  set_bit(psw, 2);
+    if(state->status_flags->AC)psw =  set_bit(psw, 4);
+    if(state->status_flags->Z)psw =  set_bit(psw, 6);
+    if(state->status_flags->S)psw =  set_bit(psw, 7);
 
     push(state, state->registers->A, psw);
 }
@@ -677,8 +685,8 @@ void pop_psw(state8080 *state)
 void exchange_HL_st(state8080 *state)
 {
     uint16_t stack = state->registers->SP;
-    swap(&state->registers->H, &state->RAM[stack]);
-    swap(&state->registers->L, &state->RAM[(stack+1)]);
+    swap(&state->registers->L, &state->RAM[stack]);
+    swap(&state->registers->H, &state->RAM[(stack+1)]);
 }
 
 //SPHL
@@ -790,8 +798,8 @@ void load_HL_dir(state8080 *state)
 {
     uint16_t addr = get_bytes_addr(state);
     
-    state->registers->L = addr;
-    state->registers->H = addr+1;
+    state->registers->L = state->RAM[addr];
+    state->registers->H = state->RAM[addr+1];
 }
 
 //SHLD addr

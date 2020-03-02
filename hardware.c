@@ -130,7 +130,7 @@ int initdisplay(SDL_Window **window, SDL_Renderer **rend)
     *window = SDL_CreateWindow("SPACE INVADERS",
 			SDL_WINDOWPOS_CENTERED, 
 			SDL_WINDOWPOS_CENTERED,
-			244,
+			224,
 			256,
 			SDL_WINDOW_SHOWN);
 
@@ -161,7 +161,7 @@ void draw_space(uint8_t *arr, SDL_Renderer **rend, int startX, int endX)
     int bit = 0;
     for(int i = startX; i < endX; i++)
     {
-	for(int j = 0; j < 256; j--)
+	for(int j = 256; j > 0; j--)
 	{
 	    if(bit > 7)
 	    {
@@ -170,7 +170,8 @@ void draw_space(uint8_t *arr, SDL_Renderer **rend, int startX, int endX)
 	    }
 	    
 	    if(is_bit_set(arr[var], bit))
-		SDL_RenderDrawPoint(*rend, i, j);
+		if(SDL_RenderDrawPoint(*rend, i, j))
+		    printf("%s\n",  SDL_GetError());
 
 	    bit++;	
 	}

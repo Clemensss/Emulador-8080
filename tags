@@ -60,6 +60,7 @@ cond_ret_op	emulador.c	/^void cond_ret_op(state8080 *state, uint8_t flag)$/;"	f
 dec_memory	emulador.c	/^void dec_memory(state8080 *state)$/;"	f
 dec_reg_pair	emulador.c	/^void dec_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f
 dec_register	emulador.c	/^void dec_register(state8080 *state, uint8_t *r)$/;"	f
+delay	main.c	/^void delay(int milliseconds)$/;"	f
 disable_inter	emulador.c	/^void disable_inter(state8080 *state)$/;"	f
 disjoint	emulador.c	/^void disjoint(uint16_t joint, uint8_t *rh, uint8_t *rl)$/;"	f
 disseble8080	dissemb.c	/^int disseble8080(unsigned char *buffer, int pc)$/;"	f
