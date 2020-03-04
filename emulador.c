@@ -670,21 +670,22 @@ void push_psw(state8080 *state)
 
     if(state->status_flags->CY) psw = set_bit(psw, 0);
     psw = set_bit(psw, 1);
-    if(state->status_flags->P)psw =  set_bit(psw, 2);
-    if(state->status_flags->AC)psw =  set_bit(psw, 4);
-    if(state->status_flags->Z)psw =  set_bit(psw, 6);
-    if(state->status_flags->S)psw =  set_bit(psw, 7);
+    if(state->status_flags->P)psw = set_bit(psw, 2);
+    if(state->status_flags->AC)psw = set_bit(psw, 4);
+    if(state->status_flags->Z)psw = set_bit(psw, 6);
+    if(state->status_flags->S)psw = set_bit(psw, 7);
 
+    printf("psw %#04x\n", psw);
     push(state, state->registers->A, psw);
 }
 
 //POP rp
 void pop(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
-    *rl = state->RAM[(REG->PC)];
+    *rl = state->RAM[(REG->SP)];
     state->registers->SP++;
-    *rh = state->RAM[(REG->PC)];
-    state->registers->SP ++;
+    *rh = state->RAM[(REG->SP)];
+    state->registers->SP++;
 }
 
 //POP PSW
@@ -694,6 +695,8 @@ void pop_psw(state8080 *state)
     pop(state, &reg_a, &psw);
 
     state->registers->A = reg_a;
+    
+    printf("psw pop %#04x\n", reg_a);
 
     if(is_bit_set(psw, 0)) state->status_flags->CY = 1;
     else state->status_flags->CY = 0;

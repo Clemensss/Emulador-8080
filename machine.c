@@ -29,7 +29,7 @@ void command_maker(state8080 *state, port *p)
 
     state->interrupt = 0;
 
-    if(REG->PC > 0x700)
+    if(REG->PC > 0x2000)
     {
 	print_state(state);
 
@@ -38,8 +38,7 @@ void command_maker(state8080 *state, port *p)
 	state->halt = 1;
 	return;
     }
-
-    printf("opcode %#04x\n", opcode);
+    
     switch(opcode)
     {
 	case 0x00: //NOP 1	    
@@ -923,34 +922,6 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=ad
 
-	    addr = get_bytes_addr(state);
-
-	    if(addr == 5)
-	    {
-		if(REG->C == 9)
-		{
-		    uint16_t offset = joint(REG->D, REG->E);
-		    char *str = &state->RAM[offset+3];
-		    while(*str != '$')
-		    {
-			printf("%c", *str);
-			str++;
-		    }
-		    printf("\n");
-		    exit(0);
-		}
-		else if(REG->C == 2)
-		{
-		
-		}
-	    }
-	    else if (addr == 0)
-	    {
-		exit(0);
-	    }
-	    else 
-		REG->PC --;
-		REG->PC --;
 		call(state);
 	    break;
 
@@ -1202,10 +1173,8 @@ void command_maker(state8080 *state, port *p)
 	    printf("opcode not found: %#04x\n", opcode);
     }
     
-    //printf("opcode %#04x\n", opcode);
     if(state->status_flags->jmp) state->status_flags->jmp = 0;
     else REG->PC++;
-    print_state(state);
 }
 
 
