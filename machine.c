@@ -29,15 +29,13 @@ void command_maker(state8080 *state, port *p)
 
     state->interrupt = 0;
 
-    if(REG->PC > 0x2000)
+    if(REG->PC < 0x9ee & REG->PC > 0x9d5)
     {
+	printf("opcode %#04x\n", opcode);
 	print_state(state);
-
-	ret_op(state);
-	print_ram(state);
-	state->halt = 1;
-	return;
     }
+
+    
     
     switch(opcode)
     {

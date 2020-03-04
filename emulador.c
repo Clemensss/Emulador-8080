@@ -633,8 +633,6 @@ void restart(state8080 *state, uint8_t opcode)
 
     push(state, pch, pcl);
     
-    state->inter_stack = REG->SP;
-
     state->registers->PC = opcode << 3;
     state->status_flags->jmp = 1;
 }

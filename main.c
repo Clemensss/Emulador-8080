@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     state8080 *state;
 
     state = init_machine();
-    //REG->SP = 0xf000;
+    //REG->SP = ;
     load_rom(state, argv[1]);
 
     port *p = init_port();
@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
 
     //Skip DAA test    
 
-    /*initdisplay(&window, &rend);
-    prepare_scene(&rend); */
+    initdisplay(&window, &rend);
+    prepare_scene(&rend); 
 
     machine_loop(state, p, &window, &rend);
     stop_sdl(&window, &rend);
@@ -67,20 +67,32 @@ void machine_loop(state8080 *state, port *p,
 
     int msec = 0, trigger = 8; /* 10ms */
     clock_t before = clock();
-
+    while (msec < trigger)
+	    {
+		//print_state(state);
+		command_maker(state, p);	
+		if(state->halt) break;
+		clock_t difference = clock() - before;
+		msec = difference * 1000 / CLOCKS_PER_SEC;
+	    }
     while(!state->halt)
     {
 	while(!state->halt)
 	{
 	     
-	    command_maker(state, p);	
-	    /*
 	    msec = 0, trigger = 8; 
 	    before = clock();
+if(REG->SP < 0x2000)
+    {
+//	print_state(state);
 
+	ret_op(state);
+	print_ram(state);
+	state->halt = 1;
+	return;
+    }
 	    while (msec < trigger)
 	    {
-		print_state(state);
 		command_maker(state, p);	
 		if(state->halt) break;
 		clock_t difference = clock() - before;
@@ -110,7 +122,6 @@ void machine_loop(state8080 *state, port *p,
 	    {
 		//p = init_port();
 	    }
-	    */
 
 	}
     }

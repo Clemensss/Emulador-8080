@@ -152,7 +152,6 @@ int initdisplay(SDL_Window **window, SDL_Renderer **rend)
 
 void prepare_scene(SDL_Renderer **rend)
 {
-    SDL_SetRenderDrawColor(*rend, 0, 0, 0, 0);
     SDL_RenderClear(*rend);
     SDL_SetRenderDrawColor(*rend, 255, 255, 255, 255);
 }
@@ -172,9 +171,21 @@ void draw_space(uint8_t *arr, SDL_Renderer **rend, int startX, int endX)
 	    }
 	    
 	    if(is_bit_set(arr[var], bit))
+	    {
+		SDL_SetRenderDrawColor(*rend, 255, 255, 255, 255);
 		if(SDL_RenderDrawPoint(*rend, i, j))
+		{
 		    printf("%s\n",  SDL_GetError());
-
+		}
+	    }
+	    else
+	    {
+		SDL_SetRenderDrawColor(*rend, 0, 0, 0, 0);
+		if(SDL_RenderDrawPoint(*rend, i, j))
+		{
+		    printf("%s\n",  SDL_GetError());
+		}
+	    }
 	    bit++;	
 	}
     }
