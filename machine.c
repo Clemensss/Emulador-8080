@@ -1,21 +1,45 @@
 #include "hardware.h"
 #include "emulador.h"
 
+void print_ram(state8080 *state)
+{
+    uint16_t pc = REG->PC;
+    pc = pc - 10;
+
+    if (pc < 0) printf("DAJSDJASDJASD\n");
+
+    else
+    {
+	for(int i = 0; i < 20; i++)
+	{
+	    printf("%#04x ", state->RAM[pc + i]);
+	}
+	printf("\n");
+    }
+}
 
 void command_maker(state8080 *state, port *p)
 {
     uint8_t sph, spl;
-    uint16_t mem;
+    uint16_t addr;
     uint8_t opcode = state->RAM[REG->PC];
+    
+    if(state->interrupt) 
+	opcode = state->inter_opcode;
 
-    if(REG->PC > 0x2000)
+    state->interrupt = 0;
+
+    if(REG->PC > 0x700)
     {
-	printf("opcode: %#04x\n", opcode);
 	print_state(state);
+
+	ret_op(state);
+	print_ram(state);
 	state->halt = 1;
 	return;
     }
 
+    printf("opcode %#04x\n", opcode);
     switch(opcode)
     {
 	case 0x00: //NOP 1	    
@@ -125,8 +149,10 @@ void command_maker(state8080 *state, port *p)
 	    break;
 
 	case 0x17: //RAL 1	CY  A = A << 1; bit 0 = prev CY; CY = prev bit 7
+	    //TODO look into it
 	    rotate_left_carry(state);
 	    break;
+
 	case 0x18: //-	    
 	    
 	    break;
@@ -255,10 +281,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x33: //INX SP	1	SP = SP + 1
 
-	    disjoint(state->registers->SP, &sph, &spl);
-	    inc_reg_pair(&sph, &spl);
-
-	    state->registers->SP = joint(sph, spl);
+	    state->registers->SP++;
 
 	    break;
 
@@ -298,9 +321,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x3b: //DCX SP	1	SP = SP-1
 
-	    disjoint(state->registers->SP, &sph, &spl);
-	    dec_reg_pair(&sph, &spl);
-	    state->registers->SP = joint(sph, spl);
+	    state->registers->SP--;
 	    break;
 
 	case 0x3c: //INR A	1   Z, S, P, AC	A <- A+1
@@ -901,8 +922,36 @@ void command_maker(state8080 *state, port *p)
 	    break;
 
 	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=ad
-	    
-	    call(state);
+
+	    addr = get_bytes_addr(state);
+
+	    if(addr == 5)
+	    {
+		if(REG->C == 9)
+		{
+		    uint16_t offset = joint(REG->D, REG->E);
+		    char *str = &state->RAM[offset+3];
+		    while(*str != '$')
+		    {
+			printf("%c", *str);
+			str++;
+		    }
+		    printf("\n");
+		    exit(0);
+		}
+		else if(REG->C == 2)
+		{
+		
+		}
+	    }
+	    else if (addr == 0)
+	    {
+		exit(0);
+	    }
+	    else 
+		REG->PC --;
+		REG->PC --;
+		call(state);
 	    break;
 
 	case 0xce: //ACI D8	2   Z, S, P, CY, AC A <- A + data + CY
@@ -1055,7 +1104,7 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xec: //CPE adr	3	if PE, CALL adr
 
-	    cond_jump(state, state->status_flags->P);
+	    cond_call(state, state->status_flags->P);
 	    break;
 	    
 	case 0xed: //-	    
@@ -1156,6 +1205,7 @@ void command_maker(state8080 *state, port *p)
     //printf("opcode %#04x\n", opcode);
     if(state->status_flags->jmp) state->status_flags->jmp = 0;
     else REG->PC++;
+    print_state(state);
 }
 
 

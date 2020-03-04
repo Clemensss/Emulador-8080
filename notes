@@ -1,15 +1,10 @@
     at 37390 we have the end of the screen loop
 
 TODO: 
-    funcao OUT d306 ta dando merda por causa da 
-    memoria a mais.
-
     write all the in out ports for the arcade
 
     write input
 
     try to organize the machine
 
-    write the interrupt handler
-
-    and stuff
+    ----0x92e addres jumping shit

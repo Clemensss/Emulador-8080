@@ -19,15 +19,21 @@ int main(int argc, char *argv[])
     state8080 *state;
 
     state = init_machine();
-    REG->SP = 0xf000;
+    //REG->SP = 0xf000;
     load_rom(state, argv[1]);
 
     port *p = init_port();
     SDL_Window *window; 
     SDL_Renderer *rend;
 
-    initdisplay(&window, &rend);
-    prepare_scene(&rend);
+    //Fix the stack pointer from 0x6ad to 0x7ad    
+    // this 0x06 byte 112 in the code, which is    
+    // /byte 112 + 0x100 = 368 in memory    
+
+    //Skip DAA test    
+
+    /*initdisplay(&window, &rend);
+    prepare_scene(&rend); */
 
     machine_loop(state, p, &window, &rend);
     stop_sdl(&window, &rend);
@@ -50,10 +56,6 @@ void delay(int milliseconds)
 void machine_loop(state8080 *state, port *p,
 		SDL_Window **window, SDL_Renderer **rend)
 {
-    int inst = 0;
-    short log = 1;
-    uint16_t max = 0;
-
     SDL_Event event;
     
     short it = 1;
@@ -66,13 +68,14 @@ void machine_loop(state8080 *state, port *p,
     int msec = 0, trigger = 8; /* 10ms */
     clock_t before = clock();
 
-
     while(!state->halt)
     {
 	while(!state->halt)
 	{
-
-	    msec = 0, trigger = 8; /* 10ms */
+	     
+	    command_maker(state, p);	
+	    /*
+	    msec = 0, trigger = 8; 
 	    before = clock();
 
 	    while (msec < trigger)
@@ -83,23 +86,21 @@ void machine_loop(state8080 *state, port *p,
 		clock_t difference = clock() - before;
 		msec = difference * 1000 / CLOCKS_PER_SEC;
 	    }
-
+	    
+	    state->interrupt = 1;
+	    state->inter_ind = 1;
 	    if(it) 
 	    {
 		it = 0;
+		state->inter_opcode = 0xcf;
 		draw_space(&state->RAM[9216], rend, 0, 128);
 	    }
 	    else 
 	    {
 		it = 1;
+		state->inter_opcode = 0xd7;
 		draw_space(&state->RAM[13312],rend, 128, 224);
 	    }
-
-	    restart(state, it+1);
-	    state->status_flags->jmp = 0;
-
-	    
-	    
 
 	    if(SDL_PollEvent(&event)) 
 	    {
@@ -109,7 +110,7 @@ void machine_loop(state8080 *state, port *p,
 	    {
 		//p = init_port();
 	    }
-
+	    */
 
 	}
     }
@@ -120,7 +121,7 @@ void load_rom(state8080 *state, char *file_name)
 {
     int file_size;
     uint8_t *rom = rom_reader(file_name, &file_size);
-    memcpy(state->RAM, rom, file_size);
+    memmove(state->RAM, rom, file_size);
 }
 
 uint8_t* rom_reader(char *file_name, int *file_size)

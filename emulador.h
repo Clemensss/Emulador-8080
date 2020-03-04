@@ -37,13 +37,25 @@ struct Registers
 
 typedef struct Registers reg;
 
+/*
+    interrrupt will be handled by 3 var
+    interrupt tells the cpu there was an 
+    interrupt
+    
+    inter opcode is the opcode
+    
+*/
 struct Machine
 {
     flags *status_flags;
     reg *registers;
 
     uint8_t halt:1;
+
+    uint8_t inter_ind:1;
+    uint16_t inter_stack;
     uint8_t interrupt:1;
+    uint8_t inter_opcode;
 
     uint8_t *RAM;
 };
@@ -187,6 +199,7 @@ uint8_t set_flags(state8080 *state, uint16_t result);
 int parity(uint8_t num);
 uint8_t twoscomp(uint8_t num);
 uint8_t set_bit(uint8_t byte, uint8_t bit);
+int rom_lock(state8080 *state, uint16_t var1, uint16_t var2);
 
 //TEST
 void tests();

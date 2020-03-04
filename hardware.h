@@ -27,4 +27,5 @@ void stop_sdl(SDL_Window **wind, SDL_Renderer **rend);
 
 //machine
 void command_maker(state8080 *state, port *p);
+void print_ram(state8080 *state);
 #endif 

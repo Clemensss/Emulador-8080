@@ -7,17 +7,19 @@
 port* init_port()
 {
     port *p = (port*)malloc(sizeof(port));
+    p->input = (i_port*)malloc(sizeof(i_port));
+    p->output = (o_port*)malloc(sizeof(o_port));
 
-    p->input->port0;
-    p->input->port1;
-    p->input->port2;
-    p->input->port3;
+    p->input->port0 = 0;
+    p->input->port1 = 0;
+    p->input->port2 = 0;
+    p->input->port3 = 0;
 
-    p->output->port2;
-    p->output->port3;
-    p->output->port4;
-    p->output->port5;
-    p->output->port6;
+    p->output->port2 = 0;
+    p->output->port3 = 0;
+    p->output->port4 = 0;
+    p->output->port5 = 0;
+    p->output->port6 = 0;
 
     return p;
 }

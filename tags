@@ -85,6 +85,9 @@ init_reg	emulador.c	/^reg* init_reg()$/;"	f
 initdisplay	hardware.c	/^int initdisplay(SDL_Window **window, SDL_Renderer **rend)$/;"	f
 input	emulador.c	/^void input(state8080 *state, port *p, uint8_t data)$/;"	f
 input	emulador.h	/^    i_port *input;$/;"	m	struct:Port
+inter_ind	emulador.h	/^    uint8_t inter_ind:1;$/;"	m	struct:Machine
+inter_opcode	emulador.h	/^    uint8_t inter_opcode;$/;"	m	struct:Machine
+inter_stack	emulador.h	/^    uint16_t inter_stack;$/;"	m	struct:Machine
 interrupt	emulador.h	/^    uint8_t interrupt:1;$/;"	m	struct:Machine
 is_bit_set	emulador.c	/^int is_bit_set(uint8_t byte, int bit)$/;"	f
 jmp	emulador.h	/^    uint8_t jmp:1;$/;"	m	struct:ConditionFlags
@@ -113,7 +116,7 @@ or_register	emulador.c	/^void or_register(state8080 *state, uint8_t r)$/;"	f
 or_thing	emulador.c	/^void or_thing(state8080 *state, uint8_t var)$/;"	f
 output	emulador.c	/^void output(state8080 *state, uint8_t *data)$/;"	f
 output	emulador.h	/^    o_port *output;$/;"	m	struct:Port
-parity	emulador.c	/^int parity(uint8_t num)$/;"	f
+parity	emulador.c	/^int parity(uint8_t x)$/;"	f
 pop	emulador.c	/^void pop(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
 pop_psw	emulador.c	/^void pop_psw(state8080 *state)$/;"	f
 port	emulador.h	/^typedef struct Port port;$/;"	t	typeref:struct:Port
@@ -127,6 +130,7 @@ port4	emulador.h	/^    uint8_t port4;$/;"	m	struct:Output
 port5	emulador.h	/^    uint8_t port5;$/;"	m	struct:Output
 port6	emulador.h	/^    uint8_t port6;$/;"	m	struct:Output
 prepare_scene	hardware.c	/^void prepare_scene(SDL_Renderer **rend)$/;"	f
+print_ram	machine.c	/^void print_ram(state8080 *state)$/;"	f
 print_state	emulador.c	/^void print_state(state8080 *state)$/;"	f
 push	emulador.c	/^void push(state8080 *state, uint8_t rh, uint8_t rl)$/;"	f
 push_psw	emulador.c	/^void push_psw(state8080 *state)$/;"	f
@@ -136,6 +140,7 @@ reg	emulador.h	/^typedef struct Registers reg;$/;"	t	typeref:struct:Registers
 registers	emulador.h	/^    reg *registers;$/;"	m	struct:Machine
 restart	emulador.c	/^void restart(state8080 *state, uint8_t opcode)$/;"	f
 ret_op	emulador.c	/^void ret_op(state8080 *state)$/;"	f
+rom_lock	emulador.c	/^int rom_lock(state8080 *state, uint16_t var1, uint16_t var2)$/;"	f
 rom_reader	main.c	/^uint8_t* rom_reader(char *file_name, int *file_size)$/;"	f
 rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f
 rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f

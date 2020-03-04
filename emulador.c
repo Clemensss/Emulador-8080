@@ -14,6 +14,19 @@ void tests()
     print_state(state);
 }
 
+int rom_lock(state8080 *state, uint16_t var1, uint16_t var2)
+{
+    if(var1 < var2)
+    {
+	//state->halt = 1;
+	//print_state(state);
+	//printf("trying to write where it shouldnt either %#04x or %#04x\n", var1, var2);
+	return 0;
+    }
+    return 0;
+}
+
+
 void print_state(state8080 *state)
 {
     printf("A    B    C    D    E    H    L    PC     SP\n");
@@ -93,9 +106,12 @@ uint8_t set_bit(uint8_t byte, uint8_t bit)
     return byte | 0x01 << bit; 
 }
 
-int parity(uint8_t num)
+int parity(uint8_t x)
 {
-    return !(num%2);
+    x ^= x >> 4;
+    x ^= x >> 2;
+    x ^= x >> 1;
+    return (~x) & 1;
 }
 
 uint8_t set_flags(state8080 *state, uint16_t result)
@@ -111,7 +127,7 @@ uint8_t set_flags(state8080 *state, uint16_t result)
     if(parity(result)) state->status_flags->P = 1;
     else state->status_flags->P = 0;
 
-    if(!result) state->status_flags->Z = 1;
+    if(result == 0) state->status_flags->Z = 1;
     else state->status_flags->Z = 0;
     
     return result;
@@ -203,36 +219,37 @@ void add_immediate(state8080 *state)
 //ADC r
 void add_register_carry(state8080 *state, uint8_t r)
 {
-    add_register(state, r);
     state->registers->A += state->status_flags->CY;
+    add_register(state, r);
 }
 
 //ADC M
 void add_memory_carry(state8080 *state)
 {
-    add_memory(state);
     state->registers->A += state->status_flags->CY;
+    add_memory(state);
 }
 
 //ACI data
 void add_immediate_carry(state8080 *state)
 {
-    add_immediate(state);
     state->registers->A += state->status_flags->CY;
+    add_immediate(state);
 }
 
 //TODO this is retarded
 //SUB r
 void sub_register(state8080 *state, uint8_t r)
 {
-    r = twoscomp(r);
-    add_register(state, r);
+    uint16_t result = REG->A - r;
+    REG->A = set_flags(state, result);
 }
 
 //SUB M
 void sub_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
+    if(rom_lock(state, addr, 0x1fff)) return;
     uint8_t data = state->RAM[addr];
 
     sub_register(state, data);
@@ -250,28 +267,33 @@ void sub_immediate(state8080 *state)
 //SBB r
 void sub_register_borrow(state8080 *state, uint8_t r)
 {
-    sub_register(state, r);
-    state->registers->A -= state->status_flags->CY;
+    uint16_t result = REG->A - r - state->status_flags->CY;
+    printf("SUI OUTPUT %#04x\n", result);
+    REG->A = set_flags(state, result);
 }
 
 //SBB M
 void sub_memory_borrow(state8080 *state)
 {
-    sub_memory(state);
-    state->registers->A -= state->status_flags->CY;
+    uint16_t addr = get_HL_addr(state);
+    uint8_t data = state->RAM[addr];
+
+    sub_register_borrow(state, data);
 }
 
 //SBI data
 void sub_immediate_borrow(state8080 *state)
 {
-    sub_immediate(state);
-    state->registers->A -= state->status_flags->CY;
+    REG->PC++;
+    uint8_t data = get_PC_data(state);
+
+    sub_register_borrow(state, data);
 }
 
 //INR r
 void inc_register(state8080 *state, uint8_t *r)
 {
-    uint8_t result = *r + 1;
+    uint8_t result = *r + 0x01;
     *r = set_flags(state, result);
 }
 
@@ -279,7 +301,9 @@ void inc_register(state8080 *state, uint8_t *r)
 void inc_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
-    uint8_t result = state->RAM[addr] + 1;
+    if(rom_lock(state, addr, 0x1fff)) return;
+
+    uint8_t result = state->RAM[addr] + 0x01;
     state->RAM[addr] = set_flags(state, result);
 }
 
@@ -294,7 +318,9 @@ void dec_register(state8080 *state, uint8_t *r)
 void dec_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
-    uint8_t result = state->RAM[addr] -1;
+    
+    if(rom_lock(state, addr, 0x1fff)) return;
+    uint8_t result = state->RAM[addr] -0x01;
     state->RAM[addr] = set_flags(state, result);
 }
 
@@ -537,6 +563,8 @@ void jump(state8080 *state)
     uint8_t byte3 = get_PC_data(state);
 
     uint16_t addr = joint(byte3, byte2);
+
+    if(rom_lock(state, 0x1fff, addr)) return;
     state->registers->PC = addr;
     state->status_flags->jmp = 1;
 }
@@ -550,17 +578,21 @@ void cond_jump(state8080 *state, uint8_t flag)
 
 //CALL addr
 //TODO check stack
+/*
+    shouldn you jump just one on the pc
+    when you return why are you uppint 2?
+*/
 void call(state8080 *state)
 {
-    uint16_t stack = state->registers->SP;
     uint8_t pch, pcl;
     
-    disjoint(state->registers->PC, &pch, &pcl);
+    disjoint(state->registers->PC+3, &pch, &pcl);
     push(state, pch, pcl);
     jump(state);
 }
 
 //Condition addr
+//it doesnt make sense to add two more 
 void cond_call(state8080 *state, uint8_t flag)
 {
     if(flag) call(state);
@@ -569,20 +601,21 @@ void cond_call(state8080 *state, uint8_t flag)
 
 //RET
 //TODO check pc
+//this pc is 3 more because we have to skip the 3 bytes of
+//the call instruction
+
 void ret_op(state8080 *state)
 {
     uint16_t stack = state->registers->SP;
     uint8_t pch, pcl;
-    
-    disjoint(state->registers->PC, &pch, &pcl);
 
-    pop(state, &pch, &pcl);
+    state->registers->PC = (joint(state->RAM[stack+1], state->RAM[stack]));
+    REG->SP +=2;
 
-    state->registers->PC = (joint(pch, pcl));
+    //if(rom_lock(state, 0x1fff, REG->PC)) return;
+
     state->status_flags->jmp = 1;
     
-    REG->PC += 2;
-
     //printf("RET PC %#04x\n", REG->PC);
 }
 
@@ -590,17 +623,17 @@ void ret_op(state8080 *state)
 void cond_ret_op(state8080 *state, uint8_t flag)
 {
     if(flag) ret_op(state);
-    else REG->PC += 2;
 }
 
 //RST n
 void restart(state8080 *state, uint8_t opcode)
 {
-    uint16_t stack = state->registers->SP;
     uint8_t pch, pcl;
     disjoint(state->registers->PC, &pch, &pcl);
 
     push(state, pch, pcl);
+    
+    state->inter_stack = REG->SP;
 
     state->registers->PC = opcode << 3;
     state->status_flags->jmp = 1;
@@ -623,12 +656,11 @@ void jump_HL_dir(state8080 *state)
 //PUSH rp
 void push(state8080 *state, uint8_t rh, uint8_t rl)
 {
-    uint16_t stack = state->registers->SP;
-    
-    state->RAM[(stack-1)] = rh;
-    state->RAM[(stack-2)] = rl;
+    state->registers->SP--;
+    state->RAM[REG->SP] = rh;
 
-    state->registers->SP -= 2;
+    state->registers->SP--;
+    state->RAM[REG->SP] = rl;
 }
 
 //PUSH PSW
@@ -649,12 +681,10 @@ void push_psw(state8080 *state)
 //POP rp
 void pop(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
-    uint16_t stack = state->registers->SP;
-    
-    *rl = state->RAM[(stack)];
-    *rh = state->RAM[(stack+1)];
-    
-    state->registers->SP += 2;
+    *rl = state->RAM[(REG->PC)];
+    state->registers->SP++;
+    *rh = state->RAM[(REG->PC)];
+    state->registers->SP ++;
 }
 
 //POP PSW
@@ -711,7 +741,7 @@ void output(state8080 *state, uint8_t *data)
 //EI
 void enable_inter(state8080 *state)
 {
-    state->interrupt = 1;
+   state->inter_ind = 0;
 }
 
 //DI
@@ -739,6 +769,7 @@ void move_register(uint8_t *r1, uint8_t *r2)
 void move_from_mem(state8080 *state, uint8_t *r)
 {
     uint16_t addr = get_HL_addr(state);
+    //if(rom_lock(state,addr, 0x1fff)) return;
     *r = state->RAM[addr];
 }
 
@@ -746,6 +777,7 @@ void move_from_mem(state8080 *state, uint8_t *r)
 void move_to_mem(state8080 *state, uint8_t *r)
 {
     uint16_t addr = get_HL_addr(state);
+    //if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = *r;
 }
 
@@ -753,6 +785,8 @@ void move_to_mem(state8080 *state, uint8_t *r)
 void move_immediate(state8080 *state, uint8_t *r)
 {
     state->registers->PC++;
+
+    //if(rom_lock(state, 0x1fff, REG->PC)) return;
     *r = state->RAM[state->registers->PC];
 }
 
@@ -763,6 +797,7 @@ void move_to_mem_imed(state8080 *state)
     uint8_t data = get_PC_data(state);
 
     uint16_t addr = get_HL_addr(state);
+    if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = data;
 }
 
@@ -782,22 +817,46 @@ void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)
 //LDA addr
 void load_acc_dir(state8080 *state)
 {
-    uint16_t addr = get_bytes_addr(state);
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+
+    uint16_t addr = joint(byte3, byte2);
+
+    //if(rom_lock(state, addr,0x1fff)) return;
     state->registers->A = state->RAM[addr];
 }
 
 //STA addr
 void store_acc_dir(state8080 *state)
 {
-    uint16_t addr = get_bytes_addr(state);
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+
+    uint16_t addr = joint(byte3, byte2);
+
+
+    if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = state->registers->A;
 }
 
 //LHLD addr
 void load_HL_dir(state8080 *state)
 {
-    uint16_t addr = get_bytes_addr(state);
-    
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+
+    uint16_t addr = joint(byte3, byte2);
+
+    //if(rom_lock(state, 0x1fff, addr)) return;
     state->registers->L = state->RAM[addr];
     state->registers->H = state->RAM[addr+1];
 }
@@ -805,7 +864,15 @@ void load_HL_dir(state8080 *state)
 //SHLD addr
 void store_HL_dir(state8080 *state)
 {
-    uint16_t addr = get_bytes_addr(state);
+    state->registers->PC++;
+    uint8_t byte2 = get_PC_data(state);
+
+    state->registers->PC++;
+    uint8_t byte3 = get_PC_data(state);
+
+    uint16_t addr = joint(byte3, byte2);
+
+    if(rom_lock(state, addr, 0x1fff)) return;
 
     state->RAM[addr] =  state->registers->L; 
     state->RAM[(addr+1)] =  state->registers->H; 
@@ -815,6 +882,8 @@ void store_HL_dir(state8080 *state)
 void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
     uint16_t addr = joint(*rh, *rl);
+
+    //if(rom_lock(state, addr, 0x1fff)) return;
     state->registers->A = state->RAM[addr];
 }
 
@@ -822,6 +891,8 @@ void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 void store_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
     uint16_t addr = joint(*rh, *rl);
+
+    if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = state->registers->A;
 }
 
@@ -831,34 +902,6 @@ void exchange_HL_DE(state8080 *state)
     swap(&state->registers->H, &state->registers->D);
     swap(&state->registers->L, &state->registers->E);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
