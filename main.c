@@ -69,7 +69,6 @@ void machine_loop(state8080 *state, port *p,
     clock_t before = clock();
     while (msec < trigger)
 	    {
-		//print_state(state);
 		command_maker(state, p);	
 		if(state->halt) break;
 		clock_t difference = clock() - before;
@@ -82,15 +81,7 @@ void machine_loop(state8080 *state, port *p,
 	     
 	    msec = 0, trigger = 8; 
 	    before = clock();
-if(REG->SP < 0x2000)
-    {
-//	print_state(state);
 
-	ret_op(state);
-	print_ram(state);
-	state->halt = 1;
-	return;
-    }
 	    while (msec < trigger)
 	    {
 		command_maker(state, p);	
@@ -100,7 +91,7 @@ if(REG->SP < 0x2000)
 	    }
 	    
 	    state->interrupt = 1;
-	    state->inter_ind = 1;
+
 	    if(it) 
 	    {
 		it = 0;

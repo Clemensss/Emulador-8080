@@ -29,6 +29,8 @@ int rom_lock(state8080 *state, uint16_t var1, uint16_t var2)
 
 void print_state(state8080 *state)
 {
+    
+    printf("opcode %#04x\n", state->RAM[REG->PC]);
     printf("A    B    C    D    E    H    L    PC     SP\n");
     printf("%#04x",state->registers->A);
     printf(" %#04x",state->registers->B);
@@ -268,7 +270,6 @@ void sub_immediate(state8080 *state)
 void sub_register_borrow(state8080 *state, uint8_t r)
 {
     uint16_t result = REG->A - r - state->status_flags->CY;
-    printf("SUI OUTPUT %#04x\n", result);
     REG->A = set_flags(state, result);
 }
 
@@ -673,7 +674,6 @@ void push_psw(state8080 *state)
     if(state->status_flags->Z)psw = set_bit(psw, 6);
     if(state->status_flags->S)psw = set_bit(psw, 7);
 
-    printf("psw %#04x\n", psw);
     push(state, state->registers->A, psw);
 }
 
@@ -693,8 +693,6 @@ void pop_psw(state8080 *state)
     pop(state, &reg_a, &psw);
 
     state->registers->A = reg_a;
-    
-    printf("psw pop %#04x\n", reg_a);
 
     if(is_bit_set(psw, 0)) state->status_flags->CY = 1;
     else state->status_flags->CY = 0;
@@ -728,15 +726,29 @@ void move_HL_SP(state8080 *state)
 
 //--------------------- IO ----------------------
 //IN port
-void input(state8080 *state, port *p, uint8_t data)
+void input(state8080 *state, port *p)
 {
+    REG->PC++;  
+    uint8_t data = get_PC_data(state);
+
     state->registers->A = read_i_port(p, data);
+    //printf("input %#04x\n", REG->A);
+    if(data == 0x01)
+    {
+	    p->input->port1 = 0x0;
+    }
+
+    else if(data == 0x02) p->input->port2 = 0x0;
+    else if(data == 0x03) p->input->port3 = 0x0;
 }
 
 //OUT port
-void output(state8080 *state, uint8_t *data)
+void output(state8080 *state, port *p)
 {
-    *data = state->registers->A;
+    REG->PC++;  
+    uint8_t data = get_PC_data(state);
+
+    write_o_port(p, data, REG->A);
 }
 
 //EI
@@ -798,7 +810,7 @@ void move_to_mem_imed(state8080 *state)
     uint8_t data = get_PC_data(state);
 
     uint16_t addr = get_HL_addr(state);
-    if(rom_lock(state, addr, 0x1fff)) return;
+    //if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = data;
 }
 

@@ -83,7 +83,7 @@ init_machine	emulador.c	/^state8080* init_machine()$/;"	f
 init_port	hardware.c	/^port* init_port()$/;"	f
 init_reg	emulador.c	/^reg* init_reg()$/;"	f
 initdisplay	hardware.c	/^int initdisplay(SDL_Window **window, SDL_Renderer **rend)$/;"	f
-input	emulador.c	/^void input(state8080 *state, port *p, uint8_t data)$/;"	f
+input	emulador.c	/^void input(state8080 *state, port *p)$/;"	f
 input	emulador.h	/^    i_port *input;$/;"	m	struct:Port
 inter_ind	emulador.h	/^    uint8_t inter_ind:1;$/;"	m	struct:Machine
 inter_opcode	emulador.h	/^    uint8_t inter_opcode;$/;"	m	struct:Machine
@@ -114,7 +114,7 @@ or_immediate	emulador.c	/^void or_immediate(state8080 *state)$/;"	f
 or_memory	emulador.c	/^void or_memory(state8080 *state)$/;"	f
 or_register	emulador.c	/^void or_register(state8080 *state, uint8_t r)$/;"	f
 or_thing	emulador.c	/^void or_thing(state8080 *state, uint8_t var)$/;"	f
-output	emulador.c	/^void output(state8080 *state, uint8_t *data)$/;"	f
+output	emulador.c	/^void output(state8080 *state, port *p)$/;"	f
 output	emulador.h	/^    o_port *output;$/;"	m	struct:Port
 parity	emulador.c	/^int parity(uint8_t x)$/;"	f
 pop	emulador.c	/^void pop(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f

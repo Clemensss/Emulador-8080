@@ -101,8 +101,8 @@ void exchange_HL_st(state8080 *state);
 void move_HL_SP(state8080 *state);
 
 //IO
-void input(state8080 *state, port *p, uint8_t data);
-void output(state8080 *state, uint8_t *data);
+void input(state8080 *state, port *p);
+void output(state8080 *state, port *p);
 void enable_inter(state8080 *state);
 void disable_inter(state8080 *state);
 void halt(state8080 *state);
@@ -205,5 +205,6 @@ int rom_lock(state8080 *state, uint16_t var1, uint16_t var2);
 void tests();
 void print_state(state8080 *state);
 
+uint16_t write_o_port(port *o, uint8_t port, uint8_t data);
 uint8_t read_i_port(port *i, uint8_t port);
 #endif 

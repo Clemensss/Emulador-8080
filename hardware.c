@@ -10,8 +10,8 @@ port* init_port()
     p->input = (i_port*)malloc(sizeof(i_port));
     p->output = (o_port*)malloc(sizeof(o_port));
 
-    p->input->port0 = 0;
-    p->input->port1 = 0;
+    p->input->port0 = 0x0;
+    p->input->port1 = 0x0;
     p->input->port2 = 0;
     p->input->port3 = 0;
 
@@ -60,7 +60,6 @@ void key_input(SDL_Event event, state8080 *state, port *p)
 		case SDLK_RIGHT:
 
 		    p->input->port1 = set_bit(p->input->port1, 6);
-		    printf("asudhasudh\n");
 		    break;
 	    }
 

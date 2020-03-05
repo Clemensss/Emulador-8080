@@ -29,14 +29,7 @@ void command_maker(state8080 *state, port *p)
 
     state->interrupt = 0;
 
-    if(REG->PC < 0x9ee & REG->PC > 0x9d5)
-    {
-	printf("opcode %#04x\n", opcode);
-	print_state(state);
-    }
-
-    
-    
+    print_state(state);
     switch(opcode)
     {
 	case 0x00: //NOP 1	    
@@ -950,8 +943,8 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xd3: //OUT D8	2	special
 
-	   // output(state);
-	    REG->PC++; 
+	    //output(state, p);
+	    REG->PC++;
 	    break;
 
 	case 0xd4: //CNC adr	3	if NCY, CALL adr
@@ -989,8 +982,8 @@ void command_maker(state8080 *state, port *p)
 
 	case 0xdb: //IN D8	2	special
 
-	    //TODO
-	    REG->PC++; 
+	    //input(state, p);
+	    REG->PC++;
 	    break;
 
 	case 0xdc: //CC adr	3	if CY, CALL adr
