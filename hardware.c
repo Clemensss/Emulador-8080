@@ -151,6 +151,7 @@ int initdisplay(SDL_Window **window, SDL_Renderer **rend)
 
 void prepare_scene(SDL_Renderer **rend)
 {
+ SDL_SetRenderDrawColor(*rend, 0, 0, 0, 0);
     SDL_RenderClear(*rend);
     SDL_SetRenderDrawColor(*rend, 255, 255, 255, 255);
 }

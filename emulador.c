@@ -1,5 +1,9 @@
 #include "emulador.h"
 
+//Temporary, should be changed to a var
+
+#define ROM_MAX 0x1fff
+
 void tests()
 {
     state8080* state = init_machine();
@@ -14,14 +18,15 @@ void tests()
     print_state(state);
 }
 
-int rom_lock(state8080 *state, uint16_t var1, uint16_t var2)
+//checks if memval is smaller than the rom
+int rom_lock(state8080 *state, uint16_t memval)
 {
-    if(var1 < var2)
+    if(memval <= ROM_MAX)
     {
-	//state->halt = 1;
-	//print_state(state);
-	//printf("trying to write where it shouldnt either %#04x or %#04x\n", var1, var2);
-	return 0;
+	state->halt = 1;
+	print_state(state);
+	printf("trying to write where it shouldnt either %#04x\n", addr);
+	return 1;
     }
     return 0;
 }
@@ -186,6 +191,13 @@ state8080* init_machine()
     {
 	state->RAM[i] = 0;
     }
+
+    state->SPRAM = (uint8_t*)malloc(sizeof(uint8_t)*SPRAM_SIZE);
+
+    for(int i = 0; i < SPRAM_SIZE; i++)
+    {
+	state->SPRAM[i] = 0;
+    }
     
     return state;
 }
@@ -204,8 +216,9 @@ void add_register(state8080 *state, uint8_t r)
 void add_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
+    if(rom_lock(state, addr)) return;
     uint8_t data = state->RAM[addr];
-
+    
     add_register(state, data);
 }
 
@@ -251,7 +264,7 @@ void sub_register(state8080 *state, uint8_t r)
 void sub_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
-    if(rom_lock(state, addr, 0x1fff)) return;
+    if(rom_lock(state, addr)) return;
     uint8_t data = state->RAM[addr];
 
     sub_register(state, data);
@@ -302,7 +315,8 @@ void inc_register(state8080 *state, uint8_t *r)
 void inc_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
-    if(rom_lock(state, addr, 0x1fff)) return;
+
+    if(rom_lock(state, addr)) return;
 
     uint8_t result = state->RAM[addr] + 0x01;
     state->RAM[addr] = set_flags(state, result);
@@ -320,7 +334,8 @@ void dec_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
     
-    if(rom_lock(state, addr, 0x1fff)) return;
+    if(rom_lock(state, addr)) return;
+
     uint8_t result = state->RAM[addr] -0x01;
     state->RAM[addr] = set_flags(state, result);
 }
@@ -378,8 +393,10 @@ void and_register(state8080 *state, uint8_t r)
 void and_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
-    uint8_t data = state->RAM[addr];
 
+    if(rom_lock(state, addr)) return;
+
+    uint8_t data = state->RAM[addr];
     and_thing(state, data);
 }
 
@@ -412,6 +429,9 @@ void xor_register(state8080 *state, uint8_t r)
 void xor_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
+    
+    if(rom_lock(state, addr)) return;
+    
     uint8_t data = state->RAM[addr];
 
     xor_thing(state, data);
@@ -446,6 +466,9 @@ void or_register(state8080 *state, uint8_t r)
 void or_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
+
+    if(rom_lock(state, addr)) return;
+
     uint8_t data = state->RAM[addr];
 
     or_thing(state, data);
@@ -478,6 +501,9 @@ void cmp_register(state8080 *state, uint8_t r)
 void cmp_memory(state8080 *state)
 {
     uint16_t addr = get_HL_addr(state);
+
+    if(rom_lock(state, addr)) return;
+
     uint8_t data = state->RAM[addr];
 
     cmp_thing(state, data);
@@ -565,7 +591,7 @@ void jump(state8080 *state)
 
     uint16_t addr = joint(byte3, byte2);
 
-    if(rom_lock(state, 0x1fff, addr)) return;
+    //if(rom_lock(state, 0x1fff, addr)) return;
     state->registers->PC = addr;
     state->status_flags->jmp = 1;
 }
@@ -592,6 +618,7 @@ void call(state8080 *state)
     jump(state);
 }
 
+
 //Condition addr
 //it doesnt make sense to add two more 
 void cond_call(state8080 *state, uint8_t flag)
@@ -607,11 +634,8 @@ void cond_call(state8080 *state, uint8_t flag)
 
 void ret_op(state8080 *state)
 {
-    uint16_t stack = state->registers->SP;
-    uint8_t pch, pcl;
-
-    state->registers->PC = (joint(state->RAM[stack+1], state->RAM[stack]));
-    REG->SP +=2;
+    state->registers->PC = joint(state->RAM[REG->SP+1], state->RAM[REG->SP]);
+    REG->SP +=2 ;
 
     //if(rom_lock(state, 0x1fff, REG->PC)) return;
 
@@ -629,11 +653,13 @@ void cond_ret_op(state8080 *state, uint8_t flag)
 //RST n
 void restart(state8080 *state, uint8_t opcode)
 {
+    state->inter_stack = REG->SP; 
+
     uint8_t pch, pcl;
     disjoint(state->registers->PC, &pch, &pcl);
-
-    push(state, pch, pcl);
     
+    push(state, pch, pcl);
+
     state->registers->PC = opcode << 3;
     state->status_flags->jmp = 1;
 }
@@ -732,7 +758,7 @@ void input(state8080 *state, port *p)
     uint8_t data = get_PC_data(state);
 
     state->registers->A = read_i_port(p, data);
-    //printf("input %#04x\n", REG->A);
+
     if(data == 0x01)
     {
 	    p->input->port1 = 0x0;
@@ -754,7 +780,7 @@ void output(state8080 *state, port *p)
 //EI
 void enable_inter(state8080 *state)
 {
-   state->inter_ind = 0;
+   //state->inter_ind = 0;
 }
 
 //DI
@@ -853,8 +879,7 @@ void store_acc_dir(state8080 *state)
 
     uint16_t addr = joint(byte3, byte2);
 
-
-    if(rom_lock(state, addr, 0x1fff)) return;
+    //if(rom_lock(state, addr, 0x1fff)) return;
     state->RAM[addr] = state->registers->A;
 }
 
@@ -869,7 +894,6 @@ void load_HL_dir(state8080 *state)
 
     uint16_t addr = joint(byte3, byte2);
 
-    //if(rom_lock(state, 0x1fff, addr)) return;
     state->registers->L = state->RAM[addr];
     state->registers->H = state->RAM[addr+1];
 }
@@ -885,7 +909,7 @@ void store_HL_dir(state8080 *state)
 
     uint16_t addr = joint(byte3, byte2);
 
-    if(rom_lock(state, addr, 0x1fff)) return;
+    if(rom_lock(state, addr)) return;
 
     state->RAM[addr] =  state->registers->L; 
     state->RAM[(addr+1)] =  state->registers->H; 
@@ -896,7 +920,7 @@ void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
     uint16_t addr = joint(*rh, *rl);
 
-    //if(rom_lock(state, addr, 0x1fff)) return;
+    //if(rom_lock(state, addr)) return;
     state->registers->A = state->RAM[addr];
 }
 
@@ -905,7 +929,7 @@ void store_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)
 {
     uint16_t addr = joint(*rh, *rl);
 
-    if(rom_lock(state, addr, 0x1fff)) return;
+    if(rom_lock(state, addr)) return;
     state->RAM[addr] = state->registers->A;
 }
 

@@ -6,8 +6,13 @@
 #include <stdint.h>
 
 #define RAM_SIZE 65536 
+#define INSTRUCTION_CYCLE 300 
+#define SPRAM_SIZE 0x3000 
 #define REG state->registers
 
+#define DEBUG 1 
+#define DEBUG_STACK if(1)
+#undef DEBUG 
 
 struct ConditionFlags
 {
@@ -58,6 +63,7 @@ struct Machine
     uint8_t inter_opcode;
 
     uint8_t *RAM;
+    uint8_t *SPRAM;
 };
 
 typedef struct Machine state8080;
@@ -199,7 +205,7 @@ uint8_t set_flags(state8080 *state, uint16_t result);
 int parity(uint8_t num);
 uint8_t twoscomp(uint8_t num);
 uint8_t set_bit(uint8_t byte, uint8_t bit);
-int rom_lock(state8080 *state, uint16_t var1, uint16_t var2);
+int rom_lock(state8080 *state, uint16_t memval);
 
 //TEST
 void tests();

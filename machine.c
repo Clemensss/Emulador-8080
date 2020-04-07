@@ -1,6 +1,7 @@
 #include "hardware.h"
 #include "emulador.h"
 
+#define HEX %#04x
 void print_ram(state8080 *state)
 {
     uint16_t pc = REG->PC;
@@ -25,9 +26,21 @@ void command_maker(state8080 *state, port *p)
     uint8_t opcode = state->RAM[REG->PC];
     
     if(state->interrupt) 
+    {
 	opcode = state->inter_opcode;
-
-    state->interrupt = 0;
+	
+	state->interrupt = 0;
+    }
+    #ifdef DEBUG_STACK
+    if(REG->SP < 0x2300)
+    {
+	printf("opcode %#04x\n", opcode);
+	print_state(state);
+	print_ram(state);
+	state->halt = 1;
+	return;
+    }
+    #endif
 
     print_state(state);
     switch(opcode)
@@ -259,9 +272,9 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x31: //LXI SP, D16 3	    SP.hi <- byte 3, SP.lo <- byte 2
 	    
-	    disjoint(state->registers->SP, &sph, &spl);
 	    load_reg_pair_imed(state, &sph, &spl);
 	    state->registers->SP = joint(sph, spl);
+	    DEBUG_STACK printf("gooddamn do you even %#04x\n", REG->SP);
 	    break;
 
 	case 0x32: //STA adr	3	(adr) <- A
@@ -271,8 +284,8 @@ void command_maker(state8080 *state, port *p)
 
 	case 0x33: //INX SP	1	SP = SP + 1
 
-	    state->registers->SP++;
-
+	    REG->SP++;
+	    DEBUG_STACK printf("gooddamn do you even %#04x\n", REG->SP);
 	    break;
 
 	case 0x34: //INR M	1   Z, S, P, AC	(HL) <- (HL)+1
@@ -303,6 +316,8 @@ void command_maker(state8080 *state, port *p)
 	    disjoint(state->registers->SP, &sph, &spl);
 	    add_reg_pair_HL(state, &sph, &spl);
 
+	    DEBUG_STACK printf("gooddamn do you even %#04x\n", REG->SP);
+
 	    break;
 	case 0x3a: //LDA adr	3	A <- (adr)
 
@@ -312,6 +327,8 @@ void command_maker(state8080 *state, port *p)
 	case 0x3b: //DCX SP	1	SP = SP-1
 
 	    state->registers->SP--;
+
+	    DEBUG_STACK printf("gooddamn do you even %#04x\n", REG->SP);
 	    break;
 
 	case 0x3c: //INR A	1   Z, S, P, AC	A <- A+1
@@ -912,8 +929,37 @@ void command_maker(state8080 *state, port *p)
 	    break;
 
 	case 0xcd: //CALL adr    3	    (SP-1)<-PC.hi;(SP-2)<-PC.lo;SP<-SP-2;PC=ad
+	    
+	    #ifdef DEBUG
 
-		call(state);
+	    addr = get_bytes_addr(state);
+
+	    if(addr == 5)	 
+	    {
+		if(REG->C == 9)
+		{
+		    uint16_t offset = joint(REG->D, REG->E);
+		    char *str = &state->RAM[offset];
+		    while(*str != '$')
+		    {
+			printf("%c", *str);
+			str++;
+		    }
+		    printf("\n");
+		    exit(0);
+		}
+	    }
+	    else if(addr == 0)
+	    {
+		exit(0);
+	    }
+	    REG->PC -= 2;
+	    call(state);
+
+	    #else
+	    call(state);
+
+	    #endif
 	    break;
 
 	case 0xce: //ACI D8	2   Z, S, P, CY, AC A <- A + data + CY
@@ -983,6 +1029,7 @@ void command_maker(state8080 *state, port *p)
 	case 0xdb: //IN D8	2	special
 
 	    //input(state, p);
+	    REG->A = 0x8;
 	    REG->PC++;
 	    break;
 

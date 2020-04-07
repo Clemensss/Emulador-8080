@@ -1,5 +1,10 @@
 #include "general.h"
 #include <stdlib.h>
+
+/*
+    change this shit
+*/
+
 void delay(int milliseconds);
 
 void machine_loop(state8080 *state, port *p, SDL_Window **window, SDL_Renderer **rend);
@@ -19,21 +24,17 @@ int main(int argc, char *argv[])
     state8080 *state;
 
     state = init_machine();
-    //REG->SP = ;
     load_rom(state, argv[1]);
 
     port *p = init_port();
     SDL_Window *window; 
     SDL_Renderer *rend;
-
-    //Fix the stack pointer from 0x6ad to 0x7ad    
-    // this 0x06 byte 112 in the code, which is    
-    // /byte 112 + 0x100 = 368 in memory    
-
-    //Skip DAA test    
-
+    
+    #ifndef DEBUG
+    REG->SP = 0x2400;
     initdisplay(&window, &rend);
-    prepare_scene(&rend); 
+    prepare_scene(&rend);
+    #endif
 
     machine_loop(state, p, &window, &rend);
     stop_sdl(&window, &rend);
@@ -57,53 +58,53 @@ void machine_loop(state8080 *state, port *p,
 		SDL_Window **window, SDL_Renderer **rend)
 {
     SDL_Event event;
-    
+    long inst_cycle = 0; 
     short it = 1;
-
-    int ms = 8;
-
-
-    int ms_s = 0;
-
     int msec = 0, trigger = 8; /* 10ms */
+
     clock_t before = clock();
-    while (msec < trigger)
-	    {
-		command_maker(state, p);	
-		if(state->halt) break;
-		clock_t difference = clock() - before;
-		msec = difference * 1000 / CLOCKS_PER_SEC;
-	    }
+    clock_t difference;
+    
     while(!state->halt)
     {
 	while(!state->halt)
 	{
-	     
-	    msec = 0, trigger = 8; 
-	    before = clock();
-
-	    while (msec < trigger)
+	    
+	    while(inst_cycle < INSTRUCTION_CYCLE)
 	    {
 		command_maker(state, p);	
-		if(state->halt) break;
-		clock_t difference = clock() - before;
-		msec = difference * 1000 / CLOCKS_PER_SEC;
+		inst_cycle++;
 	    }
-	    
-	    state->interrupt = 1;
 
-	    if(it) 
+#ifndef DEBUG
+
+	    if(state->halt) break;
+	    
+	    if(msec > trigger)
 	    {
-		it = 0;
-		state->inter_opcode = 0xcf;
-		draw_space(&state->RAM[9216], rend, 0, 128);
+		if(it) 
+		{
+		    it = 0;
+		    state->inter_opcode = 0xcf;
+		    draw_space(&state->RAM[9216], rend, 0, 128);
+		}
+		else 
+		{
+		    it = 1;
+		    state->inter_opcode = 0xd7;
+		    draw_space(&state->RAM[13312],rend, 128, 224);
+		}
+
+		state->interrupt = 1;
+		state->inter_ind = 1;
+
+		msec = 0; 
+		inst_cycle = 0;
+		before = clock();
 	    }
-	    else 
-	    {
-		it = 1;
-		state->inter_opcode = 0xd7;
-		draw_space(&state->RAM[13312],rend, 128, 224);
-	    }
+
+	    difference = clock() - before;
+	    msec = difference * 1000 / CLOCKS_PER_SEC;
 
 	    if(SDL_PollEvent(&event)) 
 	    {
@@ -113,6 +114,7 @@ void machine_loop(state8080 *state, port *p,
 	    {
 		//p = init_port();
 	    }
+#endif
 
 	}
     }

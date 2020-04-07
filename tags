@@ -13,12 +13,17 @@ C	emulador.h	/^    uint8_t C;$/;"	m	struct:Registers
 CY	emulador.h	/^    uint8_t CY:1;$/;"	m	struct:ConditionFlags
 ConditionFlags	emulador.h	/^struct ConditionFlags$/;"	s
 D	emulador.h	/^    uint8_t D;    $/;"	m	struct:Registers
+DEBUG	emulador.h	13;"	d
+DEBUG	emulador.h	15;"	d
+DEBUG_STACK	emulador.h	14;"	d
 DISPLAY_H_	display.h	2;"	d
 E	emulador.h	/^    uint8_t E;    $/;"	m	struct:Registers
 EMULATOR_H_	emulador.h	2;"	d
 GENERAL_H_	general.h	2;"	d
 H	emulador.h	/^    uint8_t H;    $/;"	m	struct:Registers
 HARDWARE_H_	hardware.h	2;"	d
+HEX	machine.c	4;"	d	file:
+INSTRUCTION_CYCLE	emulador.h	9;"	d
 Input	emulador.h	/^struct Input$/;"	s
 L	emulador.h	/^    uint8_t L;    $/;"	m	struct:Registers
 Machine	emulador.h	/^struct Machine$/;"	s
@@ -29,11 +34,14 @@ Port	emulador.h	/^struct Port$/;"	s
 RAM	emulador.h	/^    uint8_t *RAM;$/;"	m	struct:Machine
 RAM_SIZE	emulador.h	8;"	d
 RAM_SIZE	general.h	18;"	d
-REG	emulador.h	9;"	d
+REG	emulador.h	11;"	d
 REG	general.h	19;"	d
+ROM_MAX	emulador.c	5;"	d	file:
 Registers	emulador.h	/^struct Registers$/;"	s
 S	emulador.h	/^    uint8_t S:1;$/;"	m	struct:ConditionFlags
 SP	emulador.h	/^    uint16_t SP;    $/;"	m	struct:Registers
+SPRAM	emulador.h	/^    uint8_t *SPRAM;$/;"	m	struct:Machine
+SPRAM_SIZE	emulador.h	10;"	d
 Z	emulador.h	/^    uint8_t Z:1;$/;"	m	struct:ConditionFlags
 add_immediate	emulador.c	/^void add_immediate(state8080 *state)$/;"	f
 add_immediate_carry	emulador.c	/^void add_immediate_carry(state8080 *state)$/;"	f
@@ -63,7 +71,6 @@ dec_register	emulador.c	/^void dec_register(state8080 *state, uint8_t *r)$/;"	f
 delay	main.c	/^void delay(int milliseconds)$/;"	f
 disable_inter	emulador.c	/^void disable_inter(state8080 *state)$/;"	f
 disjoint	emulador.c	/^void disjoint(uint16_t joint, uint8_t *rh, uint8_t *rl)$/;"	f
-disseble8080	dissemb.c	/^int disseble8080(unsigned char *buffer, int pc)$/;"	f
 draw_space	hardware.c	/^void draw_space(uint8_t *arr, SDL_Renderer **rend, int startX, int endX)$/;"	f
 enable_inter	emulador.c	/^void enable_inter(state8080 *state)$/;"	f
 exchange_HL_DE	emulador.c	/^void exchange_HL_DE(state8080 *state)$/;"	f
@@ -101,7 +108,6 @@ load_acc_indir	emulador.c	/^void load_acc_indir(state8080 *state, uint8_t *rh, u
 load_reg_pair_imed	emulador.c	/^void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f
 load_rom	main.c	/^void load_rom(state8080 *state, char *file_name)$/;"	f
 machine_loop	main.c	/^void machine_loop(state8080 *state, port *p,$/;"	f
-main	dissemb.c	/^int main()$/;"	f
 main	main.c	/^int main(int argc, char *argv[])$/;"	f
 move_HL_SP	emulador.c	/^void move_HL_SP(state8080 *state)$/;"	f
 move_from_mem	emulador.c	/^void move_from_mem(state8080 *state, uint8_t *r)$/;"	f
@@ -140,7 +146,7 @@ reg	emulador.h	/^typedef struct Registers reg;$/;"	t	typeref:struct:Registers
 registers	emulador.h	/^    reg *registers;$/;"	m	struct:Machine
 restart	emulador.c	/^void restart(state8080 *state, uint8_t opcode)$/;"	f
 ret_op	emulador.c	/^void ret_op(state8080 *state)$/;"	f
-rom_lock	emulador.c	/^int rom_lock(state8080 *state, uint16_t var1, uint16_t var2)$/;"	f
+rom_lock	emulador.c	/^int rom_lock(state8080 *state, uint16_t memval)$/;"	f
 rom_reader	main.c	/^uint8_t* rom_reader(char *file_name, int *file_size)$/;"	f
 rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f
 rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f
