@@ -1,7 +1,6 @@
 #include "hardware.h"
 #include "emulador.h"
 
-#define HEX %#04x
 void print_ram(state8080 *state)
 {
     uint16_t pc = REG->PC;
@@ -28,18 +27,21 @@ void command_maker(state8080 *state, port *p)
     if(state->interrupt) 
     {
 	opcode = state->inter_opcode;
-	
 	state->interrupt = 0;
     }
+
     #ifdef DEBUG_STACK
-    if(REG->SP < 0x2300)
+
+    if(REG->SP < 0 || REG->SP > 0x2400)
     {
+	printf("SHITS GONE IN THE FAN THE STACK IS ALL FUCKED\n");
 	printf("opcode %#04x\n", opcode);
 	print_state(state);
 	print_ram(state);
 	state->halt = 1;
 	return;
     }
+
     #endif
 
     print_state(state);

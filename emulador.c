@@ -24,8 +24,9 @@ int rom_lock(state8080 *state, uint16_t memval)
     if(memval <= ROM_MAX)
     {
 	state->halt = 1;
+	printf("SHITS GONE IN THE FAN\n");
 	print_state(state);
-	printf("trying to write where it shouldnt either %#04x\n", addr);
+	printf("trying to write where it shouldnt %#04x\n", memval);
 	return 1;
     }
     return 0;

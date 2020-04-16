@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     SDL_Renderer *rend;
     
     #ifndef DEBUG
-    REG->SP = 0x2400;
+    REG->SP = 0x23ff;
     initdisplay(&window, &rend);
     prepare_scene(&rend);
     #endif
@@ -70,11 +70,7 @@ void machine_loop(state8080 *state, port *p,
 	while(!state->halt)
 	{
 	    
-	    while(inst_cycle < INSTRUCTION_CYCLE)
-	    {
-		command_maker(state, p);	
-		inst_cycle++;
-	    }
+	    command_maker(state, p);	
 
 #ifndef DEBUG
 

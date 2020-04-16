@@ -22,7 +22,6 @@ EMULATOR_H_	emulador.h	2;"	d
 GENERAL_H_	general.h	2;"	d
 H	emulador.h	/^    uint8_t H;    $/;"	m	struct:Registers
 HARDWARE_H_	hardware.h	2;"	d
-HEX	machine.c	4;"	d	file:
 INSTRUCTION_CYCLE	emulador.h	9;"	d
 Input	emulador.h	/^struct Input$/;"	s
 L	emulador.h	/^    uint8_t L;    $/;"	m	struct:Registers

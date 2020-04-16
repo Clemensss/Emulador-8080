@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #define RAM_SIZE 65536 
-#define INSTRUCTION_CYCLE 300 
+#define INSTRUCTION_CYCLE 100000 
 #define SPRAM_SIZE 0x3000 
 #define REG state->registers
 
