@@ -7,32 +7,28 @@
 !_TAG_PROGRAM_URL	https://ctags.io/	/official site/
 !_TAG_PROGRAM_VERSION	0.0.0	/a3c87ab5/
 A	emulador.h	/^    uint8_t A;    $/;"	m	struct:Registers	typeref:typename:uint8_t
-A	newCpu.c	/^#define A /;"	d	file:
 AC	emulador.h	/^    uint8_t AC:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
-ALL_FLAGS	newCpu.c	/^#define ALL_FLAGS /;"	d	file:
-B	newCpu.c	/^#define B /;"	d	file:
+ALL_FLAGS	newCpu.c	/^uint8_t ALL_FLAGS[] = {1,1,1,1};$/;"	v	typeref:typename:uint8_t[]
 BC	emulador.h	/^    uint8_t BC;    $/;"	m	struct:Registers	typeref:typename:uint8_t
-C	newCpu.c	/^#define C /;"	d	file:
 CARRY_OFF	newCpu.c	/^#define CARRY_OFF /;"	d	file:
 CARRY_ON	newCpu.c	/^#define CARRY_ON /;"	d	file:
 CY	emulador.h	/^    uint8_t CY:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
 ConditionFlags	emulador.h	/^struct ConditionFlags$/;"	s
-D	newCpu.c	/^#define D /;"	d	file:
 DE	emulador.h	/^    uint8_t DE;    $/;"	m	struct:Registers	typeref:typename:uint8_t
 DEBUG	emulador.h	/^#define DEBUG /;"	d
 DEBUG_STACK	emulador.h	/^#define DEBUG_STACK /;"	d
+DIRECT	newCpu.c	/^#define DIRECT /;"	d	file:
 DISPLAY_H_	display.h	/^#define DISPLAY_H_$/;"	d
-E	newCpu.c	/^#define E /;"	d	file:
 EMULATOR_H_	emulador.h	/^#define EMULATOR_H_$/;"	d
 Emulador-8080	README.md	/^# Emulador-8080$/;"	c
 GENERAL_H_	general.h	/^#define GENERAL_H_$/;"	d
-H	newCpu.c	/^#define H /;"	d	file:
 HARDWARE_H_	hardware.h	/^#define HARDWARE_H_$/;"	d
 HL	emulador.h	/^    uint8_t HL;    $/;"	m	struct:Registers	typeref:typename:uint8_t
+IMMEDIATE	newCpu.c	/^#define IMMEDIATE /;"	d	file:
 INSTRUCTION_CYCLE	emulador.h	/^#define INSTRUCTION_CYCLE /;"	d
 Input	emulador.h	/^struct Input$/;"	s
-L	newCpu.c	/^#define L /;"	d	file:
 Machine	emulador.h	/^struct Machine$/;"	s
+NO_VALUE	newCpu.c	/^#define NO_VALUE /;"	d	file:
 OP_FUNC_PTR	newCpu.c	/^typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);$/;"	t	typeref:typename:uint16_t (*)(uint8_t,uint8_t,uint8_t)	file:
 Output	emulador.h	/^struct Output$/;"	s
 P	emulador.h	/^    uint8_t P:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
@@ -44,6 +40,7 @@ RAM_SIZE	general.h	/^#define RAM_SIZE /;"	d
 RAM_SIZE	newCpu.c	/^#define RAM_SIZE /;"	d	file:
 REG	emulador.h	/^#define REG /;"	d
 REG	general.h	/^#define REG /;"	d
+REGISTER	newCpu.c	/^#define REGISTER /;"	d	file:
 ROM_MAX	emulador.c	/^#define ROM_MAX /;"	d	file:
 Registers	emulador.h	/^struct Registers$/;"	s
 S	emulador.h	/^    uint8_t S:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
@@ -53,6 +50,7 @@ SPRAM_SIZE	emulador.h	/^#define SPRAM_SIZE /;"	d
 STACK_SIZE	newCpu.c	/^#define STACK_SIZE /;"	d	file:
 Z	emulador.h	/^    uint8_t Z:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
 a	newCpu.c	/^    uint8_t a;$/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
+add	newCpu.c	/^uint16_t add(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 add_immediate	emulador.c	/^void add_immediate(state8080 *state)$/;"	f	typeref:typename:void
 add_immediate_carry	emulador.c	/^void add_immediate_carry(state8080 *state)$/;"	f	typeref:typename:void
 add_memory	emulador.c	/^void add_memory(state8080 *state)$/;"	f	typeref:typename:void
@@ -60,6 +58,10 @@ add_memory_carry	emulador.c	/^void add_memory_carry(state8080 *state)$/;"	f	type
 add_reg_pair_HL	emulador.c	/^void add_reg_pair_HL(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
 add_register	emulador.c	/^void add_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
 add_register_carry	emulador.c	/^void add_register_carry(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
+add_rp_hl	newCpu.c	/^void add_rp_hl(cpu *cpu, uint8_t rh, uint8_t rl)$/;"	f	typeref:typename:void
+add_sp_hl	newCpu.c	/^void add_sp_hl(cpu)$/;"	f	typeref:typename:void
+alu_inst	newCpu.c	/^uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation, $/;"	f	typeref:typename:uint8_t
+and	newCpu.c	/^uint16_t and(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 and_immediate	emulador.c	/^void and_immediate(state8080 *state)$/;"	f	typeref:typename:void
 and_memory	emulador.c	/^void and_memory(state8080 *state)$/;"	f	typeref:typename:void
 and_register	emulador.c	/^void and_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
@@ -68,6 +70,7 @@ b	newCpu.c	/^    uint8_t b;   $/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
 c	newCpu.c	/^    uint8_t c:1;$/;"	m	struct:flags_s	typeref:typename:uint8_t:1	file:
 c	newCpu.c	/^    uint8_t c;   $/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
 call	emulador.c	/^void call(state8080 *state)$/;"	f	typeref:typename:void
+cmp	newCpu.c	/^uint16_t cmp(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 cmp_immediate	emulador.c	/^void cmp_immediate(state8080 *state)$/;"	f	typeref:typename:void
 cmp_memory	emulador.c	/^void cmp_memory(state8080 *state)$/;"	f	typeref:typename:void
 cmp_register	emulador.c	/^void cmp_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
@@ -85,7 +88,12 @@ d	newCpu.c	/^    uint8_t d; $/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
 dec_memory	emulador.c	/^void dec_memory(state8080 *state)$/;"	f	typeref:typename:void
 dec_reg_pair	emulador.c	/^void dec_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
 dec_register	emulador.c	/^void dec_register(state8080 *state, uint8_t *r)$/;"	f	typeref:typename:void
+decr	newCpu.c	/^uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
+decr_m	newCpu.c	/^void decr_m(cpu *cpu)$/;"	f	typeref:typename:void
+decr_rp	newCpu.c	/^void decr_rp(uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
+decr_sp	newCpu.c	/^void decr_sp(cpu)$/;"	f	typeref:typename:void
 delay	main.c	/^void delay(int milliseconds)$/;"	f	typeref:typename:void
+direct_value	newCpu.c	/^uint8_t direct_value(cpu *cpu)$/;"	f	typeref:typename:uint8_t
 disable_inter	emulador.c	/^void disable_inter(state8080 *state)$/;"	f	typeref:typename:void
 draw_space	hardware.c	/^void draw_space(uint8_t *arr, SDL_Renderer **rend, int startX, int endX)$/;"	f	typeref:typename:void
 e	newCpu.c	/^    uint8_t e; $/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
@@ -93,7 +101,7 @@ enable_inter	emulador.c	/^void enable_inter(state8080 *state)$/;"	f	typeref:type
 exchange_HL_DE	emulador.c	/^void exchange_HL_DE(state8080 *state)$/;"	f	typeref:typename:void
 exchange_HL_st	emulador.c	/^void exchange_HL_st(state8080 *state)$/;"	f	typeref:typename:void
 flags	emulador.h	/^typedef struct ConditionFlags flags;$/;"	t	typeref:struct:ConditionFlags
-flags	newCpu.c	/^    struct flags_s flags;$/;"	m	struct:cpu_s	typeref:struct:flags_s	file:
+flags	newCpu.c	/^    struct flags_s *flags;$/;"	m	struct:cpu_s	typeref:struct:flags_s *	file:
 flags	newCpu.c	/^typedef struct flags_s flags;$/;"	t	typeref:struct:flags_s	file:
 flags_s	newCpu.c	/^struct flags_s $/;"	s	file:
 get_rh	newCpu.c	/^uint8_t get_rh(uint16_t bytes)$/;"	f	typeref:typename:uint8_t
@@ -103,9 +111,14 @@ halt	emulador.c	/^void halt(state8080 *state)$/;"	f	typeref:typename:void
 halt	emulador.h	/^    uint8_t halt:1;$/;"	m	struct:Machine	typeref:typename:uint8_t:1
 halt	newCpu.c	/^    uint8_t halt:1;$/;"	m	struct:cpu_s	typeref:typename:uint8_t:1	file:
 i_port	emulador.h	/^typedef struct Input i_port;$/;"	t	typeref:struct:Input
+immediate_value	newCpu.c	/^uint8_t immediate_value(cpu *cpu)$/;"	f	typeref:typename:uint8_t
 inc_memory	emulador.c	/^void inc_memory(state8080 *state)$/;"	f	typeref:typename:void
 inc_reg_pair	emulador.c	/^void inc_reg_pair(uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
 inc_register	emulador.c	/^void inc_register(state8080 *state, uint8_t *r)$/;"	f	typeref:typename:void
+incr	newCpu.c	/^uint16_t incr(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
+incr_m	newCpu.c	/^void incr_m(cpu *cpu)$/;"	f	typeref:typename:void
+incr_rp	newCpu.c	/^void incr_rp(uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
+incr_sp	newCpu.c	/^void incr_sp(cpu)$/;"	f	typeref:typename:void
 init_cpu	newCpu.c	/^cpu* init_cpu()$/;"	f	typeref:typename:cpu *
 init_flag	emulador.c	/^flags* init_flag()$/;"	f	typeref:typename:flags *
 init_flags	newCpu.c	/^flags* init_flags()$/;"	f	typeref:typename:flags *
@@ -115,6 +128,7 @@ init_reg	emulador.c	/^reg* init_reg()$/;"	f	typeref:typename:reg *
 initdisplay	hardware.c	/^int initdisplay(SDL_Window **window, SDL_Renderer **rend)$/;"	f	typeref:typename:int
 input	emulador.c	/^void input(state8080 *state, port *p)$/;"	f	typeref:typename:void
 input	emulador.h	/^    i_port *input;$/;"	m	struct:Port	typeref:typename:i_port *
+inst_process	newCpu.c	/^int inst_process(cpu *cpu, int opcode)$/;"	f	typeref:typename:int
 inter_ind	emulador.h	/^    uint8_t inter_ind:1;$/;"	m	struct:Machine	typeref:typename:uint8_t:1
 inter_opcode	emulador.h	/^    uint8_t inter_opcode;$/;"	m	struct:Machine	typeref:typename:uint8_t
 inter_stack	emulador.h	/^    uint16_t inter_stack;$/;"	m	struct:Machine	typeref:typename:uint16_t
@@ -129,19 +143,20 @@ jump_HL_dir	emulador.c	/^void jump_HL_dir(state8080 *state)$/;"	f	typeref:typena
 key_input	hardware.c	/^void key_input(SDL_Event event, state8080 *state, port *p)$/;"	f	typeref:typename:void
 l	newCpu.c	/^    uint8_t l;     $/;"	m	struct:cpu_s	typeref:typename:uint8_t	file:
 load_HL_dir	emulador.c	/^void load_HL_dir(state8080 *state)$/;"	f	typeref:typename:void
+load_a_addr	newCpu.c	/^void load_a_addr(cpu *cpu)$/;"	f	typeref:typename:void
+load_a_rp	newCpu.c	/^void load_a_rp(cpu *cpu, uint8_t rh, uint8_t rl)$/;"	f	typeref:typename:void
 load_acc_dir	emulador.c	/^void load_acc_dir(state8080 *state)$/;"	f	typeref:typename:void
 load_acc_indir	emulador.c	/^void load_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
+load_hl_addr	newCpu.c	/^void load_hl_addr(cpu *cpu)$/;"	f	typeref:typename:void
 load_reg_pair_imed	emulador.c	/^void load_reg_pair_imed(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
 load_rom	main.c	/^void load_rom(state8080 *state, char *file_name)$/;"	f	typeref:typename:void
-lw	newCpu.c	/^void lw(cpu *cpu, uint8_t *r)$/;"	f	typeref:typename:void
-lw_hl	newCpu.c	/^void lw_hl(cpu *cpu, uint8_t *r)$/;"	f	typeref:typename:void
-lw_rp	newCpu.c	/^void lw_rp(cpu *cpu, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
-lw_rp_sp	newCpu.c	/^void lw_rp_sp(cpu *cpu)$/;"	f	typeref:typename:void
-lwd_a	newCpu.c	/^void lwd_a(cpu *cpu)$/;"	f	typeref:typename:void
-lwd_hl	newCpu.c	/^void lwd_hl(cpu *cpu)$/;"	f	typeref:typename:void
-lwi_a	newCpu.c	/^void lwi_a(cpu *cpu, uint8_t rh, uint8_t rl)$/;"	f	typeref:typename:void
+load_rp_data	newCpu.c	/^void load_rp_data(cpu *cpu, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
+load_sp_rp	newCpu.c	/^void load_sp_rp(cpu *cpu)$/;"	f	typeref:typename:void
+load_word	newCpu.c	/^void load_word(cpu *cpu, uint8_t *r)$/;"	f	typeref:typename:void
+load_word_hl	newCpu.c	/^void load_word_hl(cpu *cpu, uint8_t *r)$/;"	f	typeref:typename:void
 machine_loop	main.c	/^void machine_loop(state8080 *state, port *p,$/;"	f	typeref:typename:void
 main	main.c	/^int main(int argc, char *argv[])$/;"	f	typeref:typename:int
+main	newCpu.c	/^int main()$/;"	f	typeref:typename:int
 mem_in	newCpu.c	/^void mem_in(cpu *cpu, uint16_t addr, uint8_t val)$/;"	f	typeref:typename:void
 mem_out	newCpu.c	/^uint16_t mem_out(cpu *cpu, uint16_t addr)$/;"	f	typeref:typename:uint16_t
 move_HL_SP	emulador.c	/^void move_HL_SP(state8080 *state)$/;"	f	typeref:typename:void
@@ -151,7 +166,7 @@ move_register	emulador.c	/^void move_register(uint8_t *r1, uint8_t *r2)$/;"	f	ty
 move_to_mem	emulador.c	/^void move_to_mem(state8080 *state, uint8_t *r)$/;"	f	typeref:typename:void
 move_to_mem_imed	emulador.c	/^void move_to_mem_imed(state8080 *state)$/;"	f	typeref:typename:void
 o_port	emulador.h	/^typedef struct Output o_port;$/;"	t	typeref:struct:Output
-op_reg	newCpu.c	/^uint8_t op_reg(cpu *cpu, OP_FUNC_PTR operation, uint8_t value, $/;"	f	typeref:typename:uint8_t
+or	newCpu.c	/^uint16_t or(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 or_immediate	emulador.c	/^void or_immediate(state8080 *state)$/;"	f	typeref:typename:void
 or_memory	emulador.c	/^void or_memory(state8080 *state)$/;"	f	typeref:typename:void
 or_register	emulador.c	/^void or_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
@@ -189,45 +204,50 @@ rom	newCpu.c	/^    uint8_t *rom;$/;"	m	struct:cpu_s	typeref:typename:uint8_t *	f
 rom_lock	emulador.c	/^int rom_lock(state8080 *state, uint16_t memval)$/;"	f	typeref:typename:int
 rom_reader	main.c	/^uint8_t* rom_reader(char *file_name, int *file_size)$/;"	f	typeref:typename:uint8_t *
 rotate_byte	emulador.c	/^void rotate_byte(state8080 *state, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)$/;"	f	typeref:typename:void
+rotate_byte	newCpu.c	/^void rotate_byte(cpu *cpu, uint8_t c_set, uint8_t lone_bit, uint8_t shifted)$/;"	f	typeref:typename:void
 rotate_left	emulador.c	/^void rotate_left(state8080 *state)$/;"	f	typeref:typename:void
+rotate_left	newCpu.c	/^void rotate_left(cpu *cpu, uint8_t carry)$/;"	f	typeref:typename:void
 rotate_left_carry	emulador.c	/^void rotate_left_carry(state8080 *state)$/;"	f	typeref:typename:void
 rotate_right	emulador.c	/^void rotate_right(state8080 *state)$/;"	f	typeref:typename:void
+rotate_right	newCpu.c	/^void rotate_right(cpu *cpu, uint8_t carry)$/;"	f	typeref:typename:void
 rotate_right_carry	emulador.c	/^void rotate_right_carry(state8080 *state)$/;"	f	typeref:typename:void
 s	newCpu.c	/^    uint8_t s:1;$/;"	m	struct:flags_s	typeref:typename:uint8_t:1	file:
 set_bit	newCpu.c	/^uint8_t set_bit(uint8_t byte, uint8_t bit)$/;"	f	typeref:typename:uint8_t
 set_carry	emulador.c	/^void set_carry(state8080 *state)$/;"	f	typeref:typename:void
 set_flag_c	newCpu.c	/^void set_flag_c(cpu *cpu, uint16_t result)$/;"	f	typeref:typename:void
 set_flag_p	newCpu.c	/^void set_flag_p(cpu *cpu, uint8_t result)$/;"	f	typeref:typename:void
-set_flag_s	newCpu.c	/^void set_flag_s(cpu *cpu uint8_t result)$/;"	f	typeref:typename:void
+set_flag_s	newCpu.c	/^void set_flag_s(cpu *cpu, uint8_t result)$/;"	f	typeref:typename:void
 set_flag_z	newCpu.c	/^void set_flag_z(cpu *cpu, uint8_t result)$/;"	f	typeref:typename:void
 set_flags_all	newCpu.c	/^void set_flags_all(cpu *cpu, uint16_t result)$/;"	f	typeref:typename:void
-set_reset_flags	newCpu.c	/^void set_reset_flags(cpu *cpu, uint8_t *arr_flag, uint16_t result) $/;"	f	typeref:typename:void
+set_reset_flags	newCpu.c	/^void set_reset_flags(cpu *cpu, uint16_t result, uint8_t *arr_flag)$/;"	f	typeref:typename:void
 sp	newCpu.c	/^    uint16_t sp;$/;"	m	struct:cpu_s	typeref:typename:uint16_t	file:
 stack	newCpu.c	/^    uint8_t *stack;$/;"	m	struct:cpu_s	typeref:typename:uint8_t *	file:
 state8080	emulador.h	/^typedef struct Machine state8080;$/;"	t	typeref:struct:Machine
 status_flags	emulador.h	/^    flags *status_flags;$/;"	m	struct:Machine	typeref:typename:flags *
 stop_sdl	hardware.c	/^void stop_sdl(SDL_Window **wind, SDL_Renderer **rend)$/;"	f	typeref:typename:void
 store_HL_dir	emulador.c	/^void store_HL_dir(state8080 *state)$/;"	f	typeref:typename:void
+store_a_addr	newCpu.c	/^void store_a_addr(cpu *cpu)$/;"	f	typeref:typename:void
+store_a_rp	newCpu.c	/^void store_a_rp(cpu *cpu, uint8_t rh, uint8_t rl)$/;"	f	typeref:typename:void
 store_acc_dir	emulador.c	/^void store_acc_dir(state8080 *state)$/;"	f	typeref:typename:void
 store_acc_indir	emulador.c	/^void store_acc_indir(state8080 *state, uint8_t *rh, uint8_t *rl)$/;"	f	typeref:typename:void
+store_byte_hl	newCpu.c	/^void store_byte_hl(cpu *cpu)$/;"	f	typeref:typename:void
+store_hl_addr	newCpu.c	/^void store_hl_addr(cpu *cpu)$/;"	f	typeref:typename:void
+store_word_hl	newCpu.c	/^void store_word_hl(cpu *cpu, uint8_t r)$/;"	f	typeref:typename:void
+sub	newCpu.c	/^uint16_t sub(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 sub_immediate	emulador.c	/^void sub_immediate(state8080 *state)$/;"	f	typeref:typename:void
 sub_immediate_borrow	emulador.c	/^void sub_immediate_borrow(state8080 *state)$/;"	f	typeref:typename:void
 sub_memory	emulador.c	/^void sub_memory(state8080 *state)$/;"	f	typeref:typename:void
 sub_memory_borrow	emulador.c	/^void sub_memory_borrow(state8080 *state)$/;"	f	typeref:typename:void
 sub_register	emulador.c	/^void sub_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
 sub_register_borrow	emulador.c	/^void sub_register_borrow(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void
-sw_hl	newCpu.c	/^void sw_hl(cpu *cpu, uint8_t r)$/;"	f	typeref:typename:void
 swap	newCpu.c	/^void swap(uint8_t *r1, uint8_t *r2)$/;"	f	typeref:typename:void
 swap_hl_de	newCpu.c	/^void swap_hl_de(cpu *cpu)$/;"	f	typeref:typename:void
-swd_a	newCpu.c	/^void swd_a(cpu *cpu)$/;"	f	typeref:typename:void
-swd_hl	newCpu.c	/^void swd_hl(cpu *cpu)$/;"	f	typeref:typename:void
-swi_a	newCpu.c	/^void swi_a(cpu *cpu, uint8_t rh, uint8_t rl)$/;"	f	typeref:typename:void
-swi_hl	newCpu.c	/^void swi_hl(cpu *cpu)$/;"	f	typeref:typename:void
 tests	emulador.c	/^void tests()$/;"	f	typeref:typename:void
 twoscomp	emulador.c	/^uint8_t twoscomp(uint8_t num)$/;"	f	typeref:typename:uint8_t
 user_input	hardware.c	/^void user_input(uint8_t *port) $/;"	f	typeref:typename:void
 write_i_port	hardware.c	/^uint8_t write_i_port(port *i, uint8_t port)$/;"	f	typeref:typename:uint8_t
 write_o_port	hardware.c	/^uint16_t write_o_port(port *o, uint8_t port, uint8_t data)$/;"	f	typeref:typename:uint16_t
+xor	newCpu.c	/^uint16_t xor(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
 xor_immediate	emulador.c	/^void xor_immediate(state8080 *state)$/;"	f	typeref:typename:void
 xor_memory	emulador.c	/^void xor_memory(state8080 *state)$/;"	f	typeref:typename:void
 xor_register	emulador.c	/^void xor_register(state8080 *state, uint8_t r)$/;"	f	typeref:typename:void

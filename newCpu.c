@@ -2,10 +2,19 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define ALL_FLAGS [1,1,1,1]
-#define CARRY_OFF 0 
-#define CARRY_ON 1 
 
+#define CARRY_OFF 0 
+#define CARRY_ON  1 
+
+#define NO_VALUE 0
+
+//addressing modes
+#define REGISTER  0 
+#define IMMEDIATE 1 
+#define DIRECT    2 
+
+uint8_t ALL_FLAGS[] = {1,1,1,1};
+typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
 
 /*
  * Register numbers: 
@@ -17,16 +26,9 @@
  *  100       H
  *  101       L 
  */
-#define A 0x06
-#define B 0x00 
-#define C 0x01 
-#define D 0x02 
-#define E 0x03 
-#define H 0x04 
-#define L 0x05 
-
 #define RAM_SIZE 1000
 #define STACK_SIZE 1000
+
 const uint8_t cycle_values[] = {
 	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4, //0x00..0x0f
 	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4,
@@ -87,7 +89,7 @@ struct cpu_s
     uint16_t sp;
     uint16_t pc;    
     
-    struct flags_s flags;
+    struct flags_s *flags;
 
     uint8_t *ram;
     uint8_t *rom;
@@ -98,12 +100,24 @@ struct cpu_s
 };
 
 typedef struct cpu_s cpu;
-typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
+
+
+flags* init_flags()
+{
+    struct flags_s* flags = (struct flags_s*)malloc(sizeof(struct flags_s));
+
+    flags->z = 0;
+    flags->p = 0;
+    flags->s = 0;
+    flags->c = 0;
+
+    return flags;
+}
+
 
 cpu* init_cpu()
 {
-    struct cpu_s* 
-	cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
+    struct cpu_s* cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
 
     cpu->a = 0;
     cpu->b = 0;
@@ -131,19 +145,6 @@ cpu* init_cpu()
     }
 
     return cpu;
-}
-
-flags* init_flags()
-{
-    struct flags_s* 
-	flags = (struct flags_s*)malloc(sizeof(struct flags_s));
-
-    flags->z = 0;
-    flags->p = 0;
-    flags->s = 0;
-    flags->c = 0;
-
-    return flags;
 }
 
 //-------------------- DATA TRANSFER -------------------------
@@ -216,7 +217,7 @@ void set_flag_c(cpu *cpu, uint16_t result)
     cpu->flags->c = !!(result & 0xff00);
 }
 
-void set_flag_s(cpu *cpu uint8_t result)
+void set_flag_s(cpu *cpu, uint8_t result)
 {
     cpu->flags->s = !!is_bit_set(result, 7);
 }
@@ -241,48 +242,48 @@ void set_flags_all(cpu *cpu, uint16_t result)
 
 // ========== data transfer ==============
 //mov r <- data
-void lw(cpu *cpu, uint8_t *r)
+void load_word(cpu *cpu, uint8_t *r)
 {
     *r = mem_out(cpu, ++cpu->pc);
 }
 
 //mov r <- hl
-void lw_hl(cpu *cpu, uint8_t *r)
+void load_word_hl(cpu *cpu, uint8_t *r)
 {
     *r = mem_out(cpu, join(cpu->h, cpu->l));
 }
 
 //mov (hl) <- r
-void sw_hl(cpu *cpu, uint8_t r)
+void store_word_hl(cpu *cpu, uint8_t r)
 {
     //HL is the addrs
     mem_in(cpu, join(cpu->h, cpu->l), r);
 }
 
 //MVI M, data
-void swi_hl(cpu *cpu)
+void store_byte_hl(cpu *cpu)
 {
     mem_in(cpu, 
-	   join(cpu->h, cpu->l) 
+	   join(cpu->h, cpu->l), 
 	   mem_out(cpu, ++cpu->pc));
 }
 
 //LXI rp, data 16
-void lw_rp(cpu *cpu, uint8_t *rh, uint8_t *rl)
+void load_rp_data(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
     *rl = mem_out(cpu, ++cpu->pc);
     *rh = mem_out(cpu, ++cpu->pc);
 }
 
-void lw_rp_sp(cpu *cpu)
+void load_sp_rp(cpu *cpu)
 {
     uint8_t rl = mem_out(cpu, ++cpu->pc);
     uint8_t rh = mem_out(cpu, ++cpu->pc);
-    cpu->sp =  join(rh, rl);
+    cpu->sp = join(rh, rl);
 }
 
 //LDA addr
-void lwd_a(cpu *cpu)
+void load_a_addr(cpu *cpu)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
@@ -291,7 +292,7 @@ void lwd_a(cpu *cpu)
 }
 
 //STA addr
-void swd_a(cpu *cpu)
+void store_a_addr(cpu *cpu)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
@@ -300,7 +301,7 @@ void swd_a(cpu *cpu)
 }
 
 //LHLD addr
-void lwd_hl(cpu *cpu)
+void load_hl_addr(cpu *cpu)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
@@ -310,7 +311,7 @@ void lwd_hl(cpu *cpu)
 }
 
 //SHLD addr
-void swd_hl(cpu *cpu)
+void store_hl_addr(cpu *cpu)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
@@ -324,14 +325,14 @@ void swd_hl(cpu *cpu)
 }
 
 //LDAX rp
-void lwi_a(cpu *cpu, uint8_t rh, uint8_t rl)
+void load_a_rp(cpu *cpu, uint8_t rh, uint8_t rl)
 {
     cpu->a = mem_out(cpu, join(rh, rl));
 }
 
 
 //STAX rp
-void swi_a(cpu *cpu, uint8_t rh, uint8_t rl)
+void store_a_rp(cpu *cpu, uint8_t rh, uint8_t rl)
 {
     mem_in(cpu, join(rh, rl), cpu->a);
 }
@@ -343,18 +344,18 @@ void swap_hl_de(cpu *cpu)
     swap(&cpu->l, &cpu->e);
 }
 
-void set_reset_flags(cpu *cpu, uint8_t *arr_flag, uint16_t result) 
+void set_reset_flags(cpu *cpu, uint16_t result, uint8_t *arr_flag)
 {
-    if(flags[0]) set_flag_z(cpu, result);
+    if(arr_flag[0]) set_flag_z(cpu, result);
     else cpu->flags->z = 0;
 
-    if(flags[1]) set_flag_p(cpu, result);
+    if(arr_flag[1]) set_flag_p(cpu, result);
     else cpu->flags->p = 0;
 
-    if(flags[2]) set_flag_s(cpu, result);
+    if(arr_flag[2]) set_flag_s(cpu, result);
     else cpu->flags->s = 0;
 
-    if(flags[3]) set_flag_c(cpu, result);
+    if(arr_flag[3]) set_flag_c(cpu, result);
     else cpu->flags->c = 0;
 }
 
@@ -369,40 +370,31 @@ void set_reset_flags(cpu *cpu, uint8_t *arr_flag, uint16_t result)
  * the op function take the register, 
  */ 
 
-
-uint8_t op_reg(cpu *cpu, OP_FUNC_PTR operation, uint8_t value, 
-		uint8_t add_flag, uint8_t *arr_flag)
+uint8_t immediate_value(cpu *cpu)
 {
-    uint16_t result;
-
-    result = operation(cpu->a, value, flag);
-    set_flags(cpu, arr_flag);
-
-    return result
+    return mem_out(cpu, ++cpu->pc);
 }
 
-/*
- * immediate function executer
- */
-uint8_t op_imed(cpu, OP_FUNC_PTR operation, 
-	     uint8_t add_flag, uint8_t *arr_flag)
-{
-    uint8_t value = mem_out(cpu, ++cpu->pc);
-    return op_reg(cpu, operation, store, value, add_flag, arr_flag);
-}
-
-/*
- * direct function 
- */
-uint8_t op_dir(cpu, OP_FUNC_PTR operation, 
-	    uint8_t add_flag, uint8_t *arr_flag)
+uint8_t direct_value(cpu *cpu)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
-    uint8_t value = mem_out(cpu, join(byte3, byte2));
 
-    return op_reg(cpu, operation, value, add_flag, arr_flag);
+    return mem_out(cpu, join(byte3, byte2));
+}
 
+uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation, 
+	         uint8_t val, uint8_t add_flag, uint8_t *set_flag_arr)
+{
+    uint16_t result;
+
+    if(addr_mode == IMMEDIATE)    val = immediate_value(cpu);
+    else if(addr_mode == DIRECT)  val = direct_value(cpu);
+
+    result = operation(cpu->a, val, add_flag);
+    set_reset_flags(cpu, result, set_flag_arr);
+
+    return result;
 }
 
 
@@ -451,23 +443,23 @@ uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag)
 // ====== special cases ====
 void incr_m(cpu *cpu)
 {
-    uint8_t next_byte = mem_out(cpu, ++cpu->pc);
-    uint16_t result = mem_out(cpu, next_byte);
+    uint8_t addr = mem_out(cpu, ++cpu->pc);
+    uint16_t result = mem_out(cpu, addr);
 
     set_flags_all(cpu, ++result);
 
-    mem_in(cpu, next_byte, result);
+    mem_in(cpu, addr, result);
 }
 
 //DCR M
 void decr_m(cpu *cpu)
 {
     uint8_t addr = mem_out(cpu, ++cpu->pc);
-    uint16_t result = mem_out(cpu, next_byte);
+    uint16_t result = mem_out(cpu, addr);
 
     set_flags_all(cpu, --result);
 
-    mem_in(cpu, next_byte, result);
+    mem_in(cpu, addr, result);
 }
 
 //INX rp
@@ -485,7 +477,6 @@ void decr_rp(uint8_t *rh, uint8_t *rl)
     *rh = get_rh(result);
     *rl = get_rl(result);
 }
-
 //DAD rp
 void add_rp_hl(cpu *cpu, uint8_t rh, uint8_t rl)
 {
@@ -493,15 +484,38 @@ void add_rp_hl(cpu *cpu, uint8_t rh, uint8_t rl)
     cpu->flags->c = result & 0xffff0000;
 
     cpu->h = get_rh(result);
-    cpu->j = get_rl(result);
+    cpu->l = get_rl(result);
+}
+
+void add_sp_hl(cpu)
+{
+    add_rp_hl(cpu, get_rh(cpu->sp), get_rl(cpu->sp));
+}
+
+void incr_sp(cpu)
+{
+    uint8_t rh = get_rh(cpu->sp);
+    uint8_t rl = get_rl(cpu->sp);
+
+    incr_rp(&rh, &rl);
+    cpu->sp = join(rh, rl);
+}
+
+void decr_sp(cpu)
+{
+    uint8_t rh = get_rh(cpu->sp);
+    uint8_t rl = get_rl(cpu->sp);
+
+    decr_rp(&rh, &rl);
+    cpu->sp = join(rh, rl);
 }
 
 //general rotate byte
-void rotate_byte(cpu *cpu, uint8_t cy_set, uint8_t lone_bit, uint8_t shifted)
+void rotate_byte(cpu *cpu, uint8_t c_set, uint8_t lone_bit, uint8_t shifted)
 {
     uint8_t result = (lone_bit | shifted);    
-    cpu->flags->c = !(0 == cy_set);    
-    state->registers->A = result;
+    cpu->flags->c = !(0 == c_set);    
+    cpu->a = result;
 }
 
 //RLC
@@ -510,16 +524,16 @@ void rotate_left(cpu *cpu, uint8_t carry)
     uint8_t lone_bit = (cpu->a >> 7);
     if(carry){lone_bit = cpu->flags->c;}
 
-    rotate_byte(state, (cpu->a >> 7), lone_bit, (cpu->a << 1));
+    rotate_byte(cpu, (cpu->a >> 7), lone_bit, (cpu->a << 1));
 }
 
 //RRC 
-void rotate_right(cpu *cpu)
+void rotate_right(cpu *cpu, uint8_t carry)
 {
     uint8_t lone_bit = (cpu->a << 7);
     if(carry){lone_bit = (cpu->flags->c << 7);}
 
-    rotate_byte(state, (cpu->a << 7), lone_bit, (cpu->a >> 1));
+    rotate_byte(cpu, (cpu->a << 7), lone_bit, (cpu->a >> 1));
 }
 
 int inst_process(cpu *cpu, int opcode)
@@ -533,207 +547,211 @@ int inst_process(cpu *cpu, int opcode)
     }*/
     switch(opcode)
     {
-	case 0x76: cpu->halt = 1; break; //    "HLT	"); break;
+	case 0x76: cpu->halt = 1; break; //    HLT
 
-	case 0x03: incr_rp(&cpu->b, &cpu->c); break; //    "INX B	"); break;
-	case 0x0b: decr_rp(&cpu->b, &cpu->c); break; //    "DCX B	"); break;
-
-	case 0x04: cpu->b = op_dir(cpu, incr, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    "INR B	"); break;
-	case 0x05: cpu->b = op_dir(cpu, incr, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    "DCR B	"); break;
-
-	case 0x09: add_rp_hl(cpu, cpu->b, cpu->c); break; //    "DAD B	"); break;
-
-	case 0x07: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RLC	"); break;
-	case 0x0f: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RRC	"); break;
-	case 0x1f: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RAR	"); break;
-	case 0x17: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RAL	"); break;
-
-	case 0x08: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-
-	case 0x0c: cpu->c = op_dir(cpu, incr, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    "INR C	"); break;
-	case 0x0d: cpu->c = op_dir(cpu, incr, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    "DCR C	"); break;
-
-	case 0x10: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0x13: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INX D	"); break;
-	case 0x14: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR D	"); break;
-	case 0x15: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR D	"); break;
-	case 0x18: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0x19: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DAD D	"); break;
-	case 0x1b: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCX D	"); break;
-	case 0x1c: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR E	"); break;
-	case 0x1d: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR E	"); break;
-	case 0x20: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-
-	case 0x23: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INX H	"); break;
-	case 0x24: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR H	"); break;
-	case 0x25: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR H	"); break;
+	case 0x08: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -
+	case 0x10: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x18: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x20: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x28: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x30: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x38: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
 
 
-	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DAA	"); break;
-	case 0x28: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0x29: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DAD H	"); break;
-
-	case 0x2b: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCX H	"); break;
-	case 0x2c: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR L	"); break;
-	case 0x2d: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR L	"); break;
-
-
-	case 0x30: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-
-
-	case 0x33: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INX SP	"); break;
-	case 0x34: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR M	"); break;
-	case 0x35: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR M	"); break;
-
-	case 0x38: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-
-	case 0x39: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DAD SP	"); break;
-	case 0x3b: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCX SP	"); break;
-	case 0x3c: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "INR A	"); break;
-	case 0x3d: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DCR A	"); break;
-
-	case 0x2f: cpu->a = ~cpu->a; break; //    "CMA	"); break;
-	case 0x37: set_flag_c(cpu); break; //    "STC	"); break;
-	case 0x3f: cpu->flags->c = ~cpu->flags->c; break; //    "CMC	"); break;
+	case 0x2f: cpu->a = ~cpu->a               ; break; //    CMA
+	case 0x37: cpu->flags->c = 1              ; break; //    STC
+	case 0x3f: cpu->flags->c = ~cpu->flags->c ; break; //    CMC
 
 	// ======== data transfer =======
-	case 0x22: swd_hl(cpu); break; //    "SHLD adr	"); break;
-	case 0x2a: lwd_hl(cpu); break; //    "LHLD adr	"); break;
-	case 0x3a: lwi_a(cpu) ; break; //    "LDA adr	"); break;
-	case 0x32: sw_a(cpu)  ; break; //    "STA adr	"); break;
+	
+	case 0x22: store_hl_addr(cpu); break;     //    SHLD adr
+	case 0x2a: load_hl_addr(cpu); break;      //    LHLD adr
+	case 0x36: store_byte_hl(cpu);     break; //    MVI M,D8
 
-	case 0x01: lw_rp(cpu, &cpu->b, &cpo->c); break; //    "LXI B,D16	"); break;
-	case 0x11: lw_rp(cpu, &cpu->d, &cpo->e); break; //    "LXI C,D16	"); break;
-	case 0x21: lw_rp(cpu, &cpu->h, &cpo->l); break; //    "LXI H,D16	"); break;
-	case 0x31: lw_rp_sp(cpu);                break; //    "LXI SP,D16	"); break;
+	case 0xeb: swap_hl_de(cpu); break;        //    XCHG	    
+	case 0x3a: load_a_addr(cpu) ; break;      //    LDA adr
+	case 0x32: store_a_addr(cpu)  ; break;    //    STA adr
 
-	case 0x02: swi_a(cpu, cpu->b, cpu->c); break; //    "STAX B	"); break;
-	case 0x12: swi_a(cpu, cpu->d, cpu->e); break; //    "STAX D	"); break;
+	case 0x01: load_rp_data(cpu, &cpu->b, &cpu->c); break; //    LXI B,D16	
+	case 0x11: load_rp_data(cpu, &cpu->d, &cpu->e); break; //    LXI C,D16	
+	case 0x21: load_rp_data(cpu, &cpu->h, &cpu->l); break; //    LXI H,D16	
+	case 0x31: load_sp_rp(cpu);                     break; //    LXI SP,D16	
 
-	case 0x36: swi_hl(cpu);     break; //    "MVI M,D8	"); break;
-	case 0x06: lw(cpu, &cpu->b); break; //    "MVI B, D8	"); break;
-	case 0x0e: lw(cpu, &cpu->c); break; //    "MVI C, D8	"); break;
-	case 0x16: lw(cpu, &cpu->d); break; //    "MVI D, D8	"); break;
-	case 0x1e: lw(cpu, &cpu->e); break; //    "MVI E, D8	"); break;
-	case 0x3e: lw(cpu, &cpu->a); break; //    "MVI A,D8	"); break;
-	case 0x16: lw(cpu, &cpu->h); break; //    "MVI H, D8	"); break;
-	case 0x2e: lw(cpu, &cpu->l); break; //    "MVI L, D8	"); break;
+	case 0x02: store_a_rp(cpu, cpu->b, cpu->c); break; //    STAX B	
+	case 0x12: store_a_rp(cpu, cpu->d, cpu->e); break; //    STAX D	
+	case 0x0a: store_a_rp(cpu, cpu->b, cpu->c); break; //    LDAX B	
+	case 0x1a: store_a_rp(cpu, cpu->d, cpu->e); break; //    LDAX D	
 
-	case 0xeb: swap_hl_de(cpu); break; //    "XCHG	"); break;    
+	case 0x06: load_word(cpu, &cpu->b); break; //    MVI B, D8	
+	case 0x0e: load_word(cpu, &cpu->c); break; //    MVI C, D8	
+	case 0x16: load_word(cpu, &cpu->d); break; //    MVI D, D8	
+	case 0x1e: load_word(cpu, &cpu->e); break; //    MVI E, D8	
+	case 0x3e: load_word(cpu, &cpu->a); break; //    MVI A,D8	
+	case 0x26: load_word(cpu, &cpu->h); break; //    MVI H, D8	
+	case 0x2e: load_word(cpu, &cpu->l); break; //    MVI L, D8	
 
-	case 0x0a: lwi_a(cpu, cpu->b, cpu->c); break; //    "LDAX B	"); break;
-	case 0x1a: lwi_a(cpu, cpu->d, cpu->e); break; //    "LDAX D	"); break;
+	case 0x46: load_word_hl(cpu, &cpu->b); break; //    MOV B,M	
+	case 0x4e: load_word_hl(cpu, &cpu->c); break; //    MOV C,M	
+	case 0x56: load_word_hl(cpu, &cpu->d); break; //    MOV D,M	
+	case 0x5e: load_word_hl(cpu, &cpu->e); break; //    MOV E,M	
+	case 0x66: load_word_hl(cpu, &cpu->h); break; //    MOV H,M	
+	case 0x6e: load_word_hl(cpu, &cpu->l); break; //    MOV L,M	
+	case 0x7e: load_word_hl(cpu, &cpu->a); break; //    MOV A,M	
 
-	case 0x46: lw_hl(cpu, &cpu->b);break; //    "MOV B,M	"); break;
-	case 0x4e: lw_hl(cpu, &cpu->c);break; //    "MOV C,M	"); break;
-	case 0x56: lw_hl(cpu, &cpu->d);break; //    "MOV D,M	"); break;
-	case 0x5e: lw_hl(cpu, &cpu->e);break; //    "MOV E,M	"); break;
-	case 0x66: lw_hl(cpu, &cpu->h);break; //    "MOV H,M	"); break;
-	case 0x6e: lw_hl(cpu, &cpu->l); break; //    "MOV L,M	"); break;
-	case 0x7e: lw_hl(cpu, &cpu->a); break; //    "MOV A,M	"); break;
+	case 0x40: cpu->b = cpu->b; break;  //    MOV B,B	
+	case 0x41: cpu->b = cpu->c; break;  //    MOV B,C	
+	case 0x42: cpu->b = cpu->d; break;  //    MOV B,D	
+	case 0x43: cpu->b = cpu->e; break;  //    MOV B,E	
+	case 0x44: cpu->b = cpu->h; break;  //    MOV B,H	
+	case 0x45: cpu->b = cpu->l; break;  //    MOV B,L	
+	case 0x47: cpu->b = cpu->a; break;  //    MOV B,A	
 
-	case 0x40: cpu->b = cpu->b; break; //    "MOV B,B	"); break;
-	case 0x41: cpu->b = cpu->c; break; //    "MOV B,C	"); break;
-	case 0x42: cpu->b = cpu->d; break; //    "MOV B,D	"); break;
-	case 0x43: cpu->b = cpu->e; break; //    "MOV B,E	"); break;
-	case 0x44: cpu->b = cpu->h; break; //    "MOV B,H	"); break;
-	case 0x45: cpu->b = cpu->l; break; //    "MOV B,L	"); break;
-	case 0x47: cpu->b = cpu->a; break; //    "MOV B,A	"); break;
-
-	case 0x48: cpu->c = cpu->b; break;  //    "MOV C,B	"); break;
-	case 0x49: cpu->c = cpu->c; break;  //    "MOV C,C	"); break;
-	case 0x4a: cpu->c = cpu->d; break;  //    "MOV C,D	"); break;
-	case 0x4b: cpu->c = cpu->e; break;  //    "MOV C,E	"); break;
-	case 0x4c: cpu->c = cpu->h; break;  //    "MOV C,H	"); break;
-	case 0x4d: cpu->c = cpu->l; break;  //    "MOV C,L	"); break;
-	case 0x4f: cpu->c = cpu->a; break;  //    "MOV C,A	"); break;
+	case 0x48: cpu->c = cpu->b; break;  //    MOV C,B	
+	case 0x49: cpu->c = cpu->c; break;  //    MOV C,C	
+	case 0x4a: cpu->c = cpu->d; break;  //    MOV C,D	
+	case 0x4b: cpu->c = cpu->e; break;  //    MOV C,E	
+	case 0x4c: cpu->c = cpu->h; break;  //    MOV C,H	
+	case 0x4d: cpu->c = cpu->l; break;  //    MOV C,L	
+	case 0x4f: cpu->c = cpu->a; break;  //    MOV C,A	
 		   
-	case 0x50: cpu->d = cpu->b; break;  //    "MOV D,B	"); break;
-	case 0x51: cpu->d = cpu->c; break;  //    "MOV D,C	"); break;
-	case 0x52: cpu->d = cpu->d; break;  //    "MOV D,D	"); break;
-	case 0x53: cpu->d = cpu->e; break;  //    "MOV D,E	"); break;
-	case 0x54: cpu->d = cpu->h; break;  //    "MOV D,H	"); break;
-	case 0x55: cpu->d = cpu->l; break;  //    "MOV D,L	"); break;
-	case 0x57: cpu->d = cpu->a; break;  //    "MOV D,A	"); break;
+	case 0x50: cpu->d = cpu->b; break;  //    MOV D,B	
+	case 0x51: cpu->d = cpu->c; break;  //    MOV D,C	
+	case 0x52: cpu->d = cpu->d; break;  //    MOV D,D	
+	case 0x53: cpu->d = cpu->e; break;  //    MOV D,E	
+	case 0x54: cpu->d = cpu->h; break;  //    MOV D,H	
+	case 0x55: cpu->d = cpu->l; break;  //    MOV D,L	
+	case 0x57: cpu->d = cpu->a; break;  //    MOV D,A	
 
-	case 0x58: cpu->e = cpu->b; break;  //    "MOV E,B	"); break;
-	case 0x59: cpu->e = cpu->c; break;  //    "MOV E,C	"); break;
-	case 0x5a: cpu->e = cpu->d; break;  //    "MOV E,D	"); break;
-	case 0x5b: cpu->e = cpu->e; break;  //    "MOV E,E	"); break;
-	case 0x5c: cpu->e = cpu->h; break;  //    "MOV E,H	"); break;
-	case 0x5d: cpu->e = cpu->l; break;  //    "MOV E,L	"); break;
-	case 0x5f: cpu->e = cpu->a; break;  //    "MOV E,A	"); break;
+	case 0x58: cpu->e = cpu->b; break;  //    MOV E,B	
+	case 0x59: cpu->e = cpu->c; break;  //    MOV E,C	
+	case 0x5a: cpu->e = cpu->d; break;  //    MOV E,D	
+	case 0x5b: cpu->e = cpu->e; break;  //    MOV E,E	
+	case 0x5c: cpu->e = cpu->h; break;  //    MOV E,H	
+	case 0x5d: cpu->e = cpu->l; break;  //    MOV E,L	
+	case 0x5f: cpu->e = cpu->a; break;  //    MOV E,A	
 
-	case 0x60: cpu->h = cpu->b; break;  //    "MOV H,B	"); break;
-	case 0x61: cpu->h = cpu->c; break;  //    "MOV H,C	"); break;
-	case 0x62: cpu->h = cpu->d; break;  //    "MOV H,D	"); break;
-	case 0x63: cpu->h = cpu->e; break;  //    "MOV H,E	"); break;
-	case 0x64: cpu->h = cpu->h; break;  //    "MOV H,H	"); break;
-	case 0x65: cpu->h = cpu->l; break;  //    "MOV H,L	"); break;
-	case 0x67: cpu->h = cpu->a; break;  //    "MOV H,A	"); break;
+	case 0x60: cpu->h = cpu->b; break;  //    MOV H,B	
+	case 0x61: cpu->h = cpu->c; break;  //    MOV H,C	
+	case 0x62: cpu->h = cpu->d; break;  //    MOV H,D	
+	case 0x63: cpu->h = cpu->e; break;  //    MOV H,E	
+	case 0x64: cpu->h = cpu->h; break;  //    MOV H,H	
+	case 0x65: cpu->h = cpu->l; break;  //    MOV H,L	
+	case 0x67: cpu->h = cpu->a; break;  //    MOV H,A	
 
-	case 0x68: cpu->l = cpu->b; break;  //    "MOV L,B	"); break;
-	case 0x69: cpu->l = cpu->c; break;  //    "MOV L,C	"); break;
-	case 0x6a: cpu->l = cpu->d; break;  //    "MOV L,D	"); break;
-	case 0x6b: cpu->l = cpu->e; break;  //    "MOV L,E	"); break;
-	case 0x6c: cpu->l = cpu->h; break;  //    "MOV L,H	"); break;
-	case 0x6d: cpu->l = cpu->l; break;  //    "MOV L,L	"); break;
-	case 0x6f: cpu->l = cpu->a; break;  //    "MOV L,A	"); break;
+	case 0x68: cpu->l = cpu->b; break;  //    MOV L,B	
+	case 0x69: cpu->l = cpu->c; break;  //    MOV L,C	
+	case 0x6a: cpu->l = cpu->d; break;  //    MOV L,D	
+	case 0x6b: cpu->l = cpu->e; break;  //    MOV L,E	
+	case 0x6c: cpu->l = cpu->h; break;  //    MOV L,H	
+	case 0x6d: cpu->l = cpu->l; break;  //    MOV L,L	
+	case 0x6f: cpu->l = cpu->a; break;  //    MOV L,A	
 
-	case 0x70: sw_hl(cpu, cpu->b); break; //    "MOV M,B	"); break;
-	case 0x71: sw_hl(cpu, cpu->c); break; //    "MOV M,C	"); break;
-	case 0x72: sw_hl(cpu, cpu->d); break; //    "MOV M,D	"); break;
-	case 0x73: sw_hl(cpu, cpu->e); break; //    "MOV M,E	"); break;
-	case 0x74: sw_hl(cpu, cpu->h); break; //    "MOV M,H	"); break;
-	case 0x75: sw_hl(cpu, cpu->l); break; //    "MOV M,L	"); break;
-	case 0x77: sw_hl(cpu, cpu->a); break; //    "MOV M,A	"); break;
+	case 0x70: store_word_hl(cpu, cpu->b); break; //    MOV M,B	
+	case 0x71: store_word_hl(cpu, cpu->c); break; //    MOV M,C	
+	case 0x72: store_word_hl(cpu, cpu->d); break; //    MOV M,D	
+	case 0x73: store_word_hl(cpu, cpu->e); break; //    MOV M,E	
+	case 0x74: store_word_hl(cpu, cpu->h); break; //    MOV M,H	
+	case 0x75: store_word_hl(cpu, cpu->l); break; //    MOV M,L	
+	case 0x77: store_word_hl(cpu, cpu->a); break; //    MOV M,A	
 
-	case 0x78: cpu->a = cpu->b; break;  //    "MOV A,B	"); break;
-	case 0x79: cpu->a = cpu->c; break;  //    "MOV A,C	"); break;
-	case 0x7a: cpu->a = cpu->d; break;  //    "MOV A,D	"); break;
-	case 0x7b: cpu->a = cpu->e; break;  //    "MOV A,E	"); break;
-	case 0x7c: cpu->a = cpu->h; break;  //    "MOV A,H	"); break;
-	case 0x7d: cpu->a = cpu->l; break;  //    "MOV A,L	"); break;
-	case 0x7f: cpu->a = cpu->a; break;  //    "MOV A,A	"); break;
+	case 0x78: cpu->a = cpu->b; break;  //    MOV A,B
+	case 0x79: cpu->a = cpu->c; break;  //    MOV A,C
+	case 0x7a: cpu->a = cpu->d; break;  //    MOV A,D
+	case 0x7b: cpu->a = cpu->e; break;  //    MOV A,E
+	case 0x7c: cpu->a = cpu->h; break;  //    MOV A,H
+	case 0x7d: cpu->a = cpu->l; break;  //    MOV A,L
+	case 0x7f: cpu->a = cpu->a; break;  //    MOV A,A
 
 	// ======== arithmetic =======
-	case 0x8e: cpu->a op_dir(cpu, add, CARRY_ON, ALL_FLAGS); break; //    "ADC M	
-	case 0x86: cpu->a op_dir(cpu, add, CARRY_OFF, ALL_FLAGS); break; //    "ADD M	
+	//
+	//
+	
+	case 0x09: add_rp_hl(cpu, cpu->b, cpu->c); break; //    DAD B	
 
-	case 0x80: cpu->a = op_reg(cpu, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    "ADD B	"
-	case 0x81: cpu->a = op_reg(cpu, add, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    "ADD C	"
-	case 0x82: cpu->a = op_reg(cpu, add, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    "ADD D	"
-	case 0x83: cpu->a = op_reg(cpu, add, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    "ADD E	"
-	case 0x84: cpu->a = op_reg(cpu, add, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    "ADD H	"
-	case 0x85: cpu->a = op_reg(cpu, add, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    "ADD L	"
-	case 0x87: cpu->a = op_reg(cpu, add, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    "ADD A	"
+	case 0x17: rotate_left(cpu, CARRY_OFF); break; //    RAL
+	case 0x1f: rotate_right(cpu, CARRY_OFF); break; //   RAR
 
-	case 0x88: cpu->a = op_reg(cpu, add, cpu->b, CARRY_ON, ALL_FLAGS); break; //    "ADC B	"
-	case 0x89: cpu->a = op_reg(cpu, add, cpu->c, CARRY_ON, ALL_FLAGS); break; //    "ADC C	"
-	case 0x8a: cpu->a = op_reg(cpu, add, cpu->d, CARRY_ON, ALL_FLAGS); break; //    "ADC D	"
-	case 0x8b: cpu->a = op_reg(cpu, add, cpu->e, CARRY_ON, ALL_FLAGS); break; //    "ADC E	"
-	case 0x8c: cpu->a = op_reg(cpu, add, cpu->h, CARRY_ON, ALL_FLAGS); break; //    "ADC H	"
-	case 0x8d: cpu->a = op_reg(cpu, add, cpu->l, CARRY_ON, ALL_FLAGS); break; //    "ADC L	"
-	case 0x8f: cpu->a = op_reg(cpu, add, cpu->a, CARRY_ON, ALL_FLAGS); break; //    "ADC A	"
+	case 0x07: rotate_left(cpu, CARRY_ON); break; //    RLC
+	case 0x0f: rotate_right(cpu, CARRY_ON); break; //   RRC
 
-	case 0x96: cpu->a = op_dir(cpu, sub, CARRY_OFF, ALL_FLAGS); break; //    "SUB M	
-	case 0x9e: cpu->a = op_dir(cpu, sub, CARRY_ON, ALL_FLAGS); break; //    "SBB M	
+	case 0x03: incr_rp(&cpu->b, &cpu->c); break; //    INX B	
+	case 0x0b: decr_rp(&cpu->b, &cpu->c); break; //    DCX B	
 
-	case 0x90: cpu->a = op_reg(cpu, sub, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    "SUB B	
-	case 0x91: cpu->a = op_reg(cpu, sub, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    "SUB C	
-	case 0x92: cpu->a = op_reg(cpu, sub, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    "SUB D	
-	case 0x93: cpu->a = op_reg(cpu, sub, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    "SUB E	
-	case 0x94: cpu->a = op_reg(cpu, sub, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    "SUB H	
-	case 0x95: cpu->a = op_reg(cpu, sub, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    "SUB L	
-	case 0x97: cpu->a = op_reg(cpu, sub, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    "SUB A	
+	case 0x1b: decr_rp(&cpu->d, &cpu->e); break;//     DCX D
 
-	case 0x98: cpu->a = op_reg(cpu, sub, cpu->b, CARRY_ON, ALL_FLAGS); break; //    "SBB B	
-	case 0x99: cpu->a = op_reg(cpu, sub, cpu->c, CARRY_ON, ALL_FLAGS); break; //    "SBB C	
-	case 0x9a: cpu->a = op_reg(cpu, sub, cpu->d, CARRY_ON, ALL_FLAGS); break; //    "SBB D	
-	case 0x9b: cpu->a = op_reg(cpu, sub, cpu->e, CARRY_ON, ALL_FLAGS); break; //    "SBB E	
-	case 0x9c: cpu->a = op_reg(cpu, sub, cpu->h, CARRY_ON, ALL_FLAGS); break; //    "SBB H	
-	case 0x9d: cpu->a = op_reg(cpu, sub, cpu->l, CARRY_ON, ALL_FLAGS); break; //    "SBB L	
-	case 0x9f: cpu->a = op_reg(cpu, sub, cpu->a, CARRY_ON, ALL_FLAGS); break; //    "SBB A	
+	case 0x23: incr_rp(&cpu->h, &cpu->l); break; //    INX H
+	case 0x2b: decr_rp(&cpu->h, &cpu->l); break; //    DCX H
+
+	case 0x04: cpu->b = alu_inst(cpu, REGISTER, incr, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    INR B	
+	case 0x05: cpu->b = alu_inst(cpu, REGISTER, decr, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    DCR B	
+
+	case 0x0c: cpu->c = alu_inst(cpu, REGISTER, incr, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    INR C	
+	case 0x0d: cpu->c = alu_inst(cpu, REGISTER, decr, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    DCR C	
+
+	case 0x14: cpu->d = alu_inst(cpu, REGISTER, incr, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    INR D	
+	case 0x15: cpu->d = alu_inst(cpu, REGISTER, decr, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    DCR D	
+                                                                                        
+	case 0x1c: cpu->e = alu_inst(cpu, REGISTER, incr, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    INR E	
+	case 0x1d: cpu->e = alu_inst(cpu, REGISTER, decr, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    DCR E	
+
+	case 0x24: cpu->h = alu_inst(cpu, REGISTER, incr, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    INR H	
+	case 0x25: cpu->h = alu_inst(cpu, REGISTER, decr, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    DCR H	
+                                                                                        
+	case 0x2c: cpu->l = alu_inst(cpu, REGISTER, incr, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    INR L	
+	case 0x2d: cpu->l = alu_inst(cpu, REGISTER, decr, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    DCR L	
+                                                                                        
+	case 0x3c: cpu->a = alu_inst(cpu, REGISTER, incr, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    INR A	
+	case 0x3d: cpu->a = alu_inst(cpu, REGISTER, decr, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    DCR A	
+
+	case 0x39: add_sp_hl(cpu) ; break; //    DAD SP	
+	case 0x3b: decr_sp(cpu)   ; break; //    DCX SP	
+	case 0x33: incr_sp(cpu)   ; break; //    INX SP	
+
+	case 0x34: incr_m(cpu); break; //    INR M	
+	case 0x35: decr_m(cpu); break; //    DCR M	
+
+	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); break; //    DAA	
+
+	case 0x19: add_rp_hl(cpu, cpu->d, cpu->e); break; //    DAD D	
+	case 0x29: add_rp_hl(cpu, cpu->h, cpu->l); break; //    DAD H	
+
+	case 0x8e: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break;//    ADC M	
+	case 0x86: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_ON, ALL_FLAGS);  break; //   ADD M	
+
+	case 0x80: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ADD B	
+	case 0x81: cpu->a = alu_inst(cpu, REGISTER, add, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    ADD C	
+	case 0x82: cpu->a = alu_inst(cpu, REGISTER, add, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    ADD D	
+	case 0x83: cpu->a = alu_inst(cpu, REGISTER, add, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    ADD E	
+	case 0x84: cpu->a = alu_inst(cpu, REGISTER, add, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    ADD H	
+	case 0x85: cpu->a = alu_inst(cpu, REGISTER, add, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    ADD L	
+	case 0x87: cpu->a = alu_inst(cpu, REGISTER, add, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    ADD A	
+
+	case 0x88: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_ON, ALL_FLAGS); break; //    ADC B	
+	case 0x89: cpu->a = alu_inst(cpu, REGISTER, add, cpu->c, CARRY_ON, ALL_FLAGS); break; //    ADC C	
+	case 0x8a: cpu->a = alu_inst(cpu, REGISTER, add, cpu->d, CARRY_ON, ALL_FLAGS); break; //    ADC D	
+	case 0x8b: cpu->a = alu_inst(cpu, REGISTER, add, cpu->e, CARRY_ON, ALL_FLAGS); break; //    ADC E	
+	case 0x8c: cpu->a = alu_inst(cpu, REGISTER, add, cpu->h, CARRY_ON, ALL_FLAGS); break; //    ADC H	
+	case 0x8d: cpu->a = alu_inst(cpu, REGISTER, add, cpu->l, CARRY_ON, ALL_FLAGS); break; //    ADC L	
+	case 0x8f: cpu->a = alu_inst(cpu, REGISTER, add, cpu->a, CARRY_ON, ALL_FLAGS); break; //    ADC A	
+
+	case 0x96: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //  SUB M	
+	case 0x9e: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_ON, ALL_FLAGS);  break; //  SBB M	
+
+	case 0x90: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    SUB B	
+	case 0x91: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    SUB C	
+	case 0x92: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    SUB D	
+	case 0x93: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    SUB E	
+	case 0x94: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    SUB H	
+	case 0x95: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    SUB L	
+	case 0x97: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    SUB A	
+
+	case 0x98: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->b, CARRY_ON, ALL_FLAGS); break; //    SBB B	
+	case 0x99: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->c, CARRY_ON, ALL_FLAGS); break; //    SBB C	
+	case 0x9a: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->d, CARRY_ON, ALL_FLAGS); break; //    SBB D	
+	case 0x9b: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->e, CARRY_ON, ALL_FLAGS); break; //    SBB E	
+	case 0x9c: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->h, CARRY_ON, ALL_FLAGS); break; //    SBB H	
+	case 0x9d: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->l, CARRY_ON, ALL_FLAGS); break; //    SBB L	
+	case 0x9f: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->a, CARRY_ON, ALL_FLAGS); break; //    SBB A	
 
 	case 0xa6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "ANA M	"); break;
 
@@ -775,8 +793,6 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xbd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CMP L	"); break;
 	case 0xbf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CMP A	"); break;
 
-
-		   //
 	case 0xc0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RNZ	"); break;
 
 	case 0xc1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "POP B	"); break;
@@ -843,6 +859,7 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xfd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
 	case 0xfe: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CPI D8	"); break;    
 	case 0xff: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 7	"); break;
+
 	default: printf("%#04x not found\n", opcode);
     }
 }
