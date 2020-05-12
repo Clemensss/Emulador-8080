@@ -6,6 +6,7 @@
 
 #define CARRY_OFF 0 
 #define CARRY_ON  1 
+#define PORT_SIZE  100 
 
 #define NO_VALUE 0
 
@@ -14,19 +15,8 @@
 #define IMMEDIATE 1 
 #define DIRECT    2 
 
+//set all flags
 uint8_t ALL_FLAGS[] = {1,1,1,1};
-typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
-
-/*
- * Register numbers: 
- *  111       A
- *  000       B
- *  001	      C
- *  010       D
- *  011       E
- *  100       H
- *  101       L 
- */
 
 const uint8_t cycle_values[] = {
 	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4, //0x00..0x0f
@@ -49,6 +39,7 @@ const uint8_t cycle_values[] = {
 	11, 10, 10, 18, 17, 11, 7, 11, 11, 5, 10, 5, 17, 17, 7, 11,
 	11, 10, 10, 4, 17, 11, 7, 11, 11, 5, 10, 4, 17, 17, 7, 11,
     };
+
 /*
  *  Flags set by alu operations. 
  *  z = 1 if x == 0 else z = 0
@@ -89,7 +80,7 @@ struct cpu_s
     uint16_t pc;    
     
     struct flags_s *flags;
-
+    
     uint32_t ROM_SIZE;
     uint32_t RAM_SIZE;
     uint32_t STACK_SIZE;
@@ -97,6 +88,7 @@ struct cpu_s
     uint8_t *ram;
     uint8_t *rom;
     uint8_t *stack;
+    uint8_t *ports;
 
     uint8_t halt:1;
     uint8_t intr:1;
@@ -159,11 +151,13 @@ cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
     cpu->flags = init_flags();
 
     load_rom(file_name, cpu->rom, &cpu->ROM_SIZE);
-    cpu->ram = (uint8_t*)malloc(sizeof(uint8_t)*cpu->RAM_SIZE);
+    cpu->ram   = (uint8_t*)malloc(sizeof(uint8_t)*cpu->RAM_SIZE);
     cpu->stack = (uint8_t*)malloc(sizeof(uint8_t)*cpu->STACK_SIZE);
+    cpu->ports = (uint8_t*)malloc(sizeof(uint8_t)*PORT_SIZE);
     
     memset_zero(cpu->stack, cpu->STACK_SIZE);
     memset_zero(cpu->ram, cpu->RAM_SIZE);
+    memset_zero(cpu->ports, PORT_SIZE);
 
     return cpu;
 }
@@ -173,7 +167,6 @@ cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
 /*
  * joins two bytes
  */
-
 uint16_t join(uint8_t rh, uint8_t rl)
 {    
     return (uint16_t) rh << 8 | rl;
@@ -207,6 +200,51 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
     cpu->ram[addr] = val;
 }
+
+/*
+ * Checks if addr given to PC is or not within the given bound
+ */
+uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname)
+{
+    if(addr < bound){ return addr; }
+    else{perror("ERROR segmentation fault: %s\nPC = %#04x", memname, cpu->pc); exit(1);}
+}
+
+void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
+{
+    addr = mem_check(cpu->STACK_SIZE, addr, "STACK");
+    cpu->stack[addr] = val;
+}
+
+uint8_t stack_out(cpu *cpu, uint16_t addr)
+{
+    addr = mem_check(cpu->STACK_SIZE, addr, "STACK");
+    return cpu->stack[addr];
+}
+
+uint8_t get_psw(cpu *cpu)
+{
+    uint8_t psw = 0;
+
+    if(cpu->flags->c)  psw = set_bit(psw, 0);
+		       psw = set_bit(psw, 1);
+    if(cpu->flags->p)  psw = set_bit(psw, 2);
+  //if(cpu->flags->ac) psw = set_bit(psw, 4);
+    if(cpu->flags->Z)  psw = set_bit(psw, 6);
+    if(cpu->flags->S)  psw = set_bit(psw, 7);
+
+    return psw;
+}
+
+void set_psw(cpu *cpu, uint8_t psw)
+{
+    cpu->flags->c = !!is_bit_set(psw, 0);
+    cpu->flags->p = !!is_bit_set(psw, 2);
+  //cpu->flags->ac= !!is_bit_set(psw, 4);
+    cpu->flags->z = !!is_bit_set(psw, 6);
+    cpu->flags->s = !!is_bit_set(psw, 7);
+}
+
 
 void swap(uint8_t *r1, uint8_t *r2)
 {
@@ -262,6 +300,39 @@ void set_flags_all(cpu *cpu, uint16_t result)
     set_flag_z(cpu, result);
 }
 
+void set_reset_flags(cpu *cpu, uint16_t result, uint8_t *arr_flag)
+{
+    if(arr_flag[0]) set_flag_z(cpu, result);
+    else cpu->flags->z = 0;
+
+    if(arr_flag[1]) set_flag_p(cpu, result);
+    else cpu->flags->p = 0;
+
+    if(arr_flag[2]) set_flag_s(cpu, result);
+    else cpu->flags->s = 0;
+
+    if(arr_flag[3]) set_flag_c(cpu, result);
+    else cpu->flags->c = 0;
+}
+
+void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
+{
+    *byte_low = mem_out(cpu, ++cpu->pc);
+    *byte_high = mem_out(cpu, ++cpu->pc);
+}
+
+uint8_t read_port(cpu *cpu, uint8_t port)
+{
+    port = mem_check(PORT_SIZE, port, "PORT");
+    return cpu->ports[port];
+}
+
+void write_port(cpu *cpu, uint8_t port, uint8_t val)
+{
+    port = mem_check(PORT_SIZE, port, "PORT");
+    cpu->ports[port] = val;
+}
+
 // ========== data transfer ==============
 //mov r <- data
 void load_word(cpu *cpu, uint8_t *r)
@@ -293,56 +364,55 @@ void store_byte_hl(cpu *cpu)
 //LXI rp, data 16
 void load_rp_data(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
-    *rl = mem_out(cpu, ++cpu->pc);
-    *rh = mem_out(cpu, ++cpu->pc);
+    get_next_pc_bytes(cpu, rh, rl);
 }
 
 void load_sp_rp(cpu *cpu)
 {
-    uint8_t rl = mem_out(cpu, ++cpu->pc);
-    uint8_t rh = mem_out(cpu, ++cpu->pc);
+    uint8_t rh, rl;
+    get_next_pc_bytes(cpu, &rl, &rh);
     cpu->sp = join(rh, rl);
 }
 
 //LDA addr
 void load_a_addr(cpu *cpu)
 {
-    uint8_t byte2 = mem_out(cpu, ++cpu->pc);
-    uint8_t byte3 = mem_out(cpu, ++cpu->pc);
+    uint8_t byte_h, byte_l;
+    get_next_pc_bytes(cpu, &byte_l, &byte_h);
 
-    cpu->a = mem_out(cpu, join(byte3, byte2));
+    cpu->a = mem_out(cpu, join(byte_h, byte_l));
 }
 
 //STA addr
 void store_a_addr(cpu *cpu)
 {
-    uint8_t byte2 = mem_out(cpu, ++cpu->pc);
-    uint8_t byte3 = mem_out(cpu, ++cpu->pc);
+    uint8_t byte_h, byte_l;
+    get_next_pc_bytes(cpu, &byte_l, &byte_h);
 
-    mem_in(cpu, join(byte3, byte2), cpu->a);
+    mem_in(cpu, join(byte_h, byte_l), cpu->a);
 }
 
 //LHLD addr
 void load_hl_addr(cpu *cpu)
 {
-    uint8_t byte2 = mem_out(cpu, ++cpu->pc);
-    uint8_t byte3 = mem_out(cpu, ++cpu->pc);
+    uint8_t byte_h, byte_l;
+    get_next_pc_bytes(cpu, &byte_l, &byte_h);
 
-    cpu->l = mem_out(cpu, join(byte3, byte2));
-    cpu->h = mem_out(cpu, join(byte3, byte2) + 1);
+    cpu->l = mem_out(cpu, join(byte_h, byte_l));
+    cpu->h = mem_out(cpu, join(byte_h, byte_l) + 1);
 }
 
 //SHLD addr
 void store_hl_addr(cpu *cpu)
 {
-    uint8_t byte2 = mem_out(cpu, ++cpu->pc);
-    uint8_t byte3 = mem_out(cpu, ++cpu->pc);
+    uint8_t byte_h, byte_l;
+    get_next_pc_bytes(cpu, &byte_l, &byte_h);
 
     mem_in(cpu, 
-	    join(byte3, byte2),
+	    join(byte_h, byte_l),
             join(cpu->h, cpu->l));
     mem_in(cpu, 
-	    join(byte3, byte2) + 1,
+	    join(byte_h, byte_l) + 1,
             join(cpu->h, cpu->l));
 }
 
@@ -366,31 +436,9 @@ void swap_hl_de(cpu *cpu)
     swap(&cpu->l, &cpu->e);
 }
 
-void set_reset_flags(cpu *cpu, uint16_t result, uint8_t *arr_flag)
-{
-    if(arr_flag[0]) set_flag_z(cpu, result);
-    else cpu->flags->z = 0;
-
-    if(arr_flag[1]) set_flag_p(cpu, result);
-    else cpu->flags->p = 0;
-
-    if(arr_flag[2]) set_flag_s(cpu, result);
-    else cpu->flags->s = 0;
-
-    if(arr_flag[3]) set_flag_c(cpu, result);
-    else cpu->flags->c = 0;
-}
-
 // ======= arithmetic && logical ========
 
 // ========== general ==========
-
-/* Register function 
- *
- * Takes as argument a function that operates directly
- * general function
- * the op function take the register, 
- */ 
 
 uint8_t immediate_value(cpu *cpu)
 {
@@ -405,6 +453,18 @@ uint8_t direct_value(cpu *cpu)
     return mem_out(cpu, join(byte3, byte2));
 }
 
+/*
+ * Easier to read function pointer for the operations
+ * the alu can operate on 
+ */
+typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
+
+/* Generic function that represents the ALU
+ * Receives the addressing mode, a function pointer to an operation
+ * the val r2 that this operation will operate on,
+ * if the operation will have an added flag to it, 
+ * and an array containing the flags that should be set 
+ */
 uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation, 
 	         uint8_t val, uint8_t add_flag, uint8_t *set_flag_arr)
 {
@@ -418,7 +478,6 @@ uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation,
 
     return result;
 }
-
 
 // ======= operations =========
 
@@ -580,37 +639,12 @@ void push(cpu *cpu, uint8_t rh, uint8_t rl)
     cpu->stack[--cpu->sp] = rl;
 }
 
-//PUSH PSW
-uint8_t get_psw(cpu *cpu)
-{
-    uint8_t psw = 0;
-
-    if(cpu->flags->c)  psw = set_bit(psw, 0);
-		       psw = set_bit(psw, 1);
-    if(cpu->flags->p)  psw = set_bit(psw, 2);
-  //if(cpu->flags->ac) psw = set_bit(psw, 4);
-    if(cpu->flags->Z)  psw = set_bit(psw, 6);
-    if(cpu->flags->S)  psw = set_bit(psw, 7);
-
-    return psw;
-}
-
 //POP rp
 void pop(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
     *rl = stack_out(cpu, cpu->sp++);
     *rh = stack_out(cpu, cpu->sp++);
 }
-
-void set_psw(cpu *cpu, uint8_t psw)
-{
-    cpu->flags->c = !!is_bit_set(psw, 0);
-    cpu->flags->p = !!is_bit_set(psw, 2);
-  //cpu->flags->ac= !!is_bit_set(psw, 4);
-    cpu->flags->z = !!is_bit_set(psw, 6);
-    cpu->flags->s = !!is_bit_set(psw, 7);
-}
-
 //POP PSW
 void pop_psw(cpu *cpu)
 {
@@ -618,17 +652,6 @@ void pop_psw(cpu *cpu)
     pop(state, &cpu->a, &psw);
 
     set_psw(cpu, psw);
-}
-
-void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
-{
-    mem_check(cpu, addr);
-    cpu->stack[addr] = val;
-}
-
-uint8_t stack_out(cpu *cpu, uint16_t addr)
-{
-    return cpu->stack[addr];
 }
 
 //XTHL
@@ -656,62 +679,23 @@ void store_hl_sp(cpu *cpu)
     cpu->sp = join(cpu->h, cpu->l);
 }
 
-//--------------------- IO ----------------------
+//========== IO ===============
 //IN port
-void input(state8080 *state, port *p)
+void port_input(cpu *cpu)
 {
-    REG->PC++;  
-    uint8_t data = get_PC_data(state);
-
-    state->registers->A = read_i_port(p, data);
-
-    if(data == 0x01)
-    {
-	    p->input->port1 = 0x0;
-    }
-
-    else if(data == 0x02) p->input->port2 = 0x0;
-    else if(data == 0x03) p->input->port3 = 0x0;
+    uint8_t port = mem_out(cpu, ++cpu->pc);
+    cpu->a = read_port(cpu, port);
 }
 
 //OUT port
-void output(state8080 *state, port *p)
+void port_output(cpu *cpu)
 {
-    REG->PC++;  
-    uint8_t data = get_PC_data(state);
-
-    write_o_port(p, data, REG->A);
-}
-
-//EI
-void enable_inter(state8080 *state)
-{
-   //state->inter_ind = 0;
-}
-
-//DI
-void disable_inter(state8080 *state)
-{
-    state->interrupt = 0;
-}
-
-//HLT
-void halt(state8080 *state)
-{
-    state->halt = 1;
+    uint8_t port = mem_out(cpu, ++cpu->pc);
+    write_port(cpu, port, cpu->a);
 }
 
 
 //========== flow control ==========
-
-/*
- * Checks if addr given to PC is or not within the given bound
- */
-uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname)
-{
-    if(addr < bound){ return addr; }
-    else{perror("ERROR segmentation fault: %s\nPC = %#04x", memname, cpu->pc); exit(1);}
-}
 
 //JMP addr
 /*
@@ -759,7 +743,7 @@ void rst_n(cpu *cpu, uint8_t opcode)
 //PCHL
 void jump_hl(cpu *cpu)
 {
-    mem_check(cpu, join(cpu->h, cpu->l);
+    cpu->pc = mem_check(cpu->ROM_SIZE, join(cpu->h, cpu->l), "ROM");
 }
 
 //--------------------STACK ---------------------------------
