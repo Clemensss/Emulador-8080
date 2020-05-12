@@ -584,16 +584,10 @@ int inst_process(cpu *cpu, int opcode)
     switch(opcode)
     {
 	case 0x76: cpu->halt = 1; break; //    HLT
+	case 0xf3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    DI	
+	case 0xfb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    EI	
 
-	case 0x08: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -
-	case 0x10: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x18: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x20: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x28: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x30: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x38: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-
-
+	
 	case 0x2f: cpu->a = ~cpu->a               ; break; //    CMA
 	case 0x37: cpu->flags->c = 1              ; break; //    STC
 	case 0x3f: cpu->flags->c = ~cpu->flags->c ; break; //    CMC
@@ -602,9 +596,12 @@ int inst_process(cpu *cpu, int opcode)
 	
 	case 0x22: store_hl_addr(cpu); break;     //    SHLD adr
 	case 0x2a: load_hl_addr(cpu); break;      //    LHLD adr
-	case 0x36: store_byte_hl(cpu);     break; //    MVI M,D8
 
+	case 0xe3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    XTHL	
+	case 0xe9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PCHL	
+	case 0xf9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SPHL	
 	case 0xeb: swap_hl_de(cpu); break;        //    XCHG	    
+
 	case 0x3a: load_a_addr(cpu) ; break;      //    LDA adr
 	case 0x32: store_a_addr(cpu)  ; break;    //    STA adr
 
@@ -625,6 +622,7 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x3e: load_word(cpu, &cpu->a); break; //    MVI A,D8	
 	case 0x26: load_word(cpu, &cpu->h); break; //    MVI H, D8	
 	case 0x2e: load_word(cpu, &cpu->l); break; //    MVI L, D8	
+	case 0x36: store_byte_hl(cpu);      break; //    MVI M,D8
 
 	case 0x46: load_word_hl(cpu, &cpu->b); break; //    MOV B,M	
 	case 0x4e: load_word_hl(cpu, &cpu->c); break; //    MOV C,M	
@@ -743,7 +741,6 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x19: add_rp_hl(cpu, cpu->d, cpu->e); break; //    DAD D	
 	case 0x29: add_rp_hl(cpu, cpu->h, cpu->l); break; //    DAD H	
 
-
 	case 0x80: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ADD B	
 	case 0x81: cpu->a = alu_inst(cpu, REGISTER, add, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    ADD C	
 	case 0x82: cpu->a = alu_inst(cpu, REGISTER, add, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    ADD D	
@@ -759,7 +756,6 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x8c: cpu->a = alu_inst(cpu, REGISTER, add, cpu->h, CARRY_ON, ALL_FLAGS); break; //    ADC H	
 	case 0x8d: cpu->a = alu_inst(cpu, REGISTER, add, cpu->l, CARRY_ON, ALL_FLAGS); break; //    ADC L	
 	case 0x8f: cpu->a = alu_inst(cpu, REGISTER, add, cpu->a, CARRY_ON, ALL_FLAGS); break; //    ADC A	
-
 
 	case 0x90: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    SUB B	
 	case 0x91: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    SUB C	
@@ -781,6 +777,7 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xce: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ACI D8	
 	case 0xd6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SUI D8	
 	case 0xde: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SBI D8	
+	case 0xe6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ANI D8	
 	case 0xee: printf("Missing instruction opcode: %#04x\n", opcode); break; //    XRI D8	    
 	case 0xf6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ORI D8	    
 	case 0xfe: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPI D8	    
@@ -810,7 +807,6 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xad: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    XRA L
 	case 0xaf: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    XRA A
 
-
 	case 0xb0: cpu->a = alu_inst(cpu, REGISTER, or, cpu->b, CARRY_OFF, ALL_FLAGS); break; //     ORA B
 	case 0xb1: cpu->a = alu_inst(cpu, REGISTER, or, cpu->c, CARRY_OFF, ALL_FLAGS); break; //     ORA C
 	case 0xb2: cpu->a = alu_inst(cpu, REGISTER, or, cpu->d, CARRY_OFF, ALL_FLAGS); break; //     ORA D
@@ -827,68 +823,72 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xbd: alu_inst(cpu, REGISTER, cmp, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    CMP L	
 	case 0xbf: alu_inst(cpu, REGISTER, cmp, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    CMP A	
 
-	case 0xc0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RNZ	"); break;
-	case 0xc9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RET	"); break;
+	// ========= stack =========
+	case 0xc1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP B	
+	case 0xd1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP D	
+	case 0xe1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP H	
+	case 0xf1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP PSW	
 
-	case 0xc1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "POP B	"); break;
-	case 0xc5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "PUSH B	"); break;
+	case 0xc5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH B	
+	case 0xd5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH D	
+	case 0xe5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH H	
+	case 0xf5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH PSW	
 
-	case 0xc3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JMP adr	"); break;
-	case 0xc2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JNZ adr	"); break;
-	case 0xd2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JNC adr	"); break;
-	case 0xda: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JC adr	"); break;
-	case 0xe2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JPO adr	"); break;
-	case 0xea: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JPE adr	"); break;    
-	case 0xf2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JP adr	"); break;    
-	case 0xfa: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "JM adr	"); break;    
+	// ========= control flow ===========
+	case 0xc3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JMP adr	
+	case 0xc2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNZ adr	
+	case 0xd2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNC adr	
+	case 0xda: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JC adr	
+	case 0xe2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JPO adr	
+	case 0xea: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JPE adr	    
+	case 0xf2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JP adr	    
+	case 0xfa: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JM adr	    
 
-	case 0xcd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CALL adr	"); break;
-	case 0xc4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CNZ adr	"); break;
-	case 0xcc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CZ adr	"); break;
-	case 0xd4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CNC adr	"); break;
-	case 0xdc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CC adr	"); break;
-	case 0xfc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CM adr	"); break;    
-	case 0xf4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CP adr	"); break;    
-	case 0xe4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CPO adr	"); break;
-	case 0xec: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "CPE adr	"); break;    
-
+	case 0xcd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CALL adr
+	case 0xc4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CNZ  adr	
+	case 0xcc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CZ   adr	
+	case 0xd4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CNC  adr	
+	case 0xdc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CC   adr	
+	case 0xfc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CM   adr	    
+	case 0xf4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CP   adr	    
+	case 0xe4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPO  adr	
+	case 0xec: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPE  adr	    
 	
-	case 0xc7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 0	"); break;
-	case 0xcf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 1	"); break;
-	case 0xd7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 2	"); break;
-	case 0xdf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 3	"); break;
-	case 0xe7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 4	"); break;
-	case 0xef: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 5	"); break;    
-	case 0xf7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 6	"); break;    
-	case 0xff: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RST 7	"); break;
+	case 0xc7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 0	
+	case 0xcf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 1	
+	case 0xd7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 2	
+	case 0xdf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 3	
+	case 0xe7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 4	
+	case 0xef: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 5	    
+	case 0xf7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 6	    
+	case 0xff: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 7	
 
-	case 0xc8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RZ	1	"); break;
-	case 0xd8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RC	1	"); break;
-	case 0xd0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RNC	"); break;
-	case 0xe0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RPO	"); break;
-	case 0xe8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RPE	"); break;
-	case 0xf0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "RP	1	"); break;
+	case 0xc0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RNZ	
+	case 0xc9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RET	
+	case 0xc8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RZ	
+	case 0xd8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RC	
+	case 0xd0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RNC	
+	case 0xe0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RPO	
+	case 0xe8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RPE	
+	case 0xf0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RP	
+	
+	//======== IO =========
+	case 0xd3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    OUT D8	
+	case 0xdb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    IN D8	
 
-	case 0xcb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0xd1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "POP D	"); break;
-	case 0xd3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "OUT D8	"); break;
-	case 0xd5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "PUSH D	"); break;
-	case 0xd9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0xdb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "IN D8	"); break;
-	case 0xdd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0xe1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "POP H	"); break;
-	case 0xe3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "XTHL	"); break;
-	case 0xe5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "PUSH H	"); break;
-	case 0xe6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "ANI D8	"); break;
-	case 0xe9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "PCHL	"); break;    
-	case 0xed: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
-	case 0xf1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "POP PSW	"); break;    
-
-	case 0xf3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "DI	1	"); break;
-	case 0xf5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "PUSH PSW	"); break;
-	case 0xf9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "SPHL	"); break;    
-	case 0xfb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "EI	1	"); break;
-	case 0xfd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    "-		"); break;
+	//========= NOP =======
+	case 0x08: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -
+	case 0x10: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x18: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x20: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x28: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x30: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x38: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0xcb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -		
+	case 0xd9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0xdd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0xed: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0xfd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
 
 	default: printf("%#04x not found\n", opcode);
     }
