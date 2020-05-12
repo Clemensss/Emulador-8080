@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 
-
 #define CARRY_OFF 0 
 #define CARRY_ON  1 
 #define PORT_SIZE  100 
@@ -39,6 +38,13 @@ const uint8_t cycle_values[] = {
 	11, 10, 10, 18, 17, 11, 7, 11, 11, 5, 10, 5, 17, 17, 7, 11,
 	11, 10, 10, 4, 17, 11, 7, 11, 11, 5, 10, 4, 17, 17, 7, 11,
     };
+
+/*
+ * Easier to read function pointer for the operations
+ * the alu can operate on 
+ */
+typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
+
 
 /*
  *  Flags set by alu operations. 
@@ -107,7 +113,7 @@ uint8_t get_rh(uint16_t bytes)                     ;
 uint8_t get_rl(uint16_t bytes)                     ;
 uint16_t mem_out(cpu *cpu, uint16_t addr)          ;
 void mem_in(cpu *cpu, uint16_t addr, uint8_t val)  ;
-uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname);
+uint16_t mem_check(uint32_t bound, uint16_t addr,  char *memname, uint16_t pc);
 void stack_in(cpu *cpu, uint16_t addr, uint8_t val);
 uint8_t stack_out(cpu *cpu, uint16_t addr)         ;
 uint8_t get_psw(cpu *cpu)                          ;

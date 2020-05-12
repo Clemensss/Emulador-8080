@@ -1,101 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <string.h>
-
-
-#define CARRY_OFF 0 
-#define CARRY_ON  1 
-#define PORT_SIZE  100 
-
-#define NO_VALUE 0
-
-//addressing modes
-#define REGISTER  0 
-#define IMMEDIATE 1 
-#define DIRECT    2 
-
-//set all flags
-uint8_t ALL_FLAGS[] = {1,1,1,1};
-
-const uint8_t cycle_values[] = {
-	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4, //0x00..0x0f
-	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4,
-	4, 10, 16, 5, 5, 5, 7, 4, 4, 10, 16, 5, 5, 5, 7, 4,
-	4, 10, 13, 5, 10, 10, 10, 4, 4, 10, 13, 5, 5, 5, 7, 4,
-
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5, //0x40..0x4f
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5,
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5,
-	7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 7, 5,
-
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4, //0x80..8x4f
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-
-	11, 10, 10, 10, 17, 11, 7, 11, 11, 10, 10, 10, 10, 17, 7, 11, //0xc0..0xcf
-	11, 10, 10, 10, 17, 11, 7, 11, 11, 10, 10, 10, 10, 17, 7, 11,
-	11, 10, 10, 18, 17, 11, 7, 11, 11, 5, 10, 5, 17, 17, 7, 11,
-	11, 10, 10, 4, 17, 11, 7, 11, 11, 5, 10, 4, 17, 17, 7, 11,
-    };
-
-/*
- *  Flags set by alu operations. 
- *  z = 1 if x == 0 else z = 0
- *  s = 1 if x < 0 else s = 0
- *  p = 1 if parity(x) == 1 else p = 0
- *  c = 1 if carry else c = 0
- *  z = 1 if x == 0 else z = 0
- *  ac not used for space invaders
- */
-struct flags_s 
-{
-    uint8_t z:1;
-    uint8_t p:1;
-    uint8_t s:1;
-    uint8_t c:1;
-};
-
-typedef struct flags_s flags;
-
-
-/*
- *  This the CPU struct, it is made out of 3 register pairs
- *  1 8-bit Accumulator, a PC register and a SP register
- *  3 arrays for ROM memory, STACK, and RAM
- *  and the flags struct inside of it
- */
-struct cpu_s
-{
-    uint8_t a;
-    uint8_t b;   
-    uint8_t c;   
-    uint8_t d; 
-    uint8_t e; 
-    uint8_t h;     
-    uint8_t l;     
-
-    uint16_t sp;
-    uint16_t pc;    
-    
-    struct flags_s *flags;
-    
-    uint32_t ROM_SIZE;
-    uint32_t RAM_SIZE;
-    uint32_t STACK_SIZE;
-
-    uint8_t *ram;
-    uint8_t *rom;
-    uint8_t *stack;
-    uint8_t *ports;
-
-    uint8_t halt:1;
-    uint8_t intr:1;
-};
-
-typedef struct cpu_s cpu;
-
+#include "newCpu.h"
 
 flags* init_flags()
 {
@@ -204,21 +107,21 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 /*
  * Checks if addr given to PC is or not within the given bound
  */
-uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname)
+uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
 {
     if(addr < bound){ return addr; }
-    else{perror("ERROR segmentation fault: %s\nPC = %#04x", memname, cpu->pc); exit(1);}
+    else{printf("ERROR segmentation fault: %s\nPC = %#04x\n", memname, pc); exit(1);}
 }
 
 void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
 {
-    addr = mem_check(cpu->STACK_SIZE, addr, "STACK");
+    addr = mem_check(cpu->STACK_SIZE, addr, "STACK", cpu->pc);
     cpu->stack[addr] = val;
 }
 
 uint8_t stack_out(cpu *cpu, uint16_t addr)
 {
-    addr = mem_check(cpu->STACK_SIZE, addr, "STACK");
+    addr = mem_check(cpu->STACK_SIZE, addr, "STACK", cpu->pc);
     return cpu->stack[addr];
 }
 
@@ -230,8 +133,8 @@ uint8_t get_psw(cpu *cpu)
 		       psw = set_bit(psw, 1);
     if(cpu->flags->p)  psw = set_bit(psw, 2);
   //if(cpu->flags->ac) psw = set_bit(psw, 4);
-    if(cpu->flags->Z)  psw = set_bit(psw, 6);
-    if(cpu->flags->S)  psw = set_bit(psw, 7);
+    if(cpu->flags->z)  psw = set_bit(psw, 6);
+    if(cpu->flags->s)  psw = set_bit(psw, 7);
 
     return psw;
 }
@@ -323,13 +226,13 @@ void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
 
 uint8_t read_port(cpu *cpu, uint8_t port)
 {
-    port = mem_check(PORT_SIZE, port, "PORT");
+    port = mem_check(PORT_SIZE, port, "PORT", cpu->pc);
     return cpu->ports[port];
 }
 
 void write_port(cpu *cpu, uint8_t port, uint8_t val)
 {
-    port = mem_check(PORT_SIZE, port, "PORT");
+    port = mem_check(PORT_SIZE, port, "PORT", cpu->pc);
     cpu->ports[port] = val;
 }
 
@@ -452,12 +355,6 @@ uint8_t direct_value(cpu *cpu)
 
     return mem_out(cpu, join(byte3, byte2));
 }
-
-/*
- * Easier to read function pointer for the operations
- * the alu can operate on 
- */
-typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
 
 /* Generic function that represents the ALU
  * Receives the addressing mode, a function pointer to an operation
@@ -649,7 +546,7 @@ void pop(cpu *cpu, uint8_t *rh, uint8_t *rl)
 void pop_psw(cpu *cpu)
 {
     uint8_t psw;
-    pop(state, &cpu->a, &psw);
+    pop(cpu, &cpu->a, &psw);
 
     set_psw(cpu, psw);
 }
@@ -710,7 +607,7 @@ void jump(cpu *cpu, uint8_t cond)
 
     if(cond)
     { 
-	cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM");
+	cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);
     }
 }
 
@@ -729,21 +626,21 @@ void ret(cpu *cpu, uint8_t cond)
     {
 	uint8_t rh, rl;
 	pop(cpu, &rh, &rl);
-	cpu->pc = mem_check(cpu->ROM_SIZE, join(rh, rl), "ROM");
+	cpu->pc = mem_check(cpu->ROM_SIZE, join(rh, rl), "ROM", cpu->pc);
     }
 }
 
 //RST n
 void rst_n(cpu *cpu, uint8_t opcode)
 {
-    push(state, get_rh(cpu->pc), get_rl(cpu->pc));
-    cpu->pc = mem_check(cpu->ROM_SIZE, opcode << 3, "ROM");
+    push(cpu, get_rh(cpu->pc), get_rl(cpu->pc));
+    cpu->pc = mem_check(cpu->ROM_SIZE, opcode << 3, "ROM", cpu->pc);
 }
 
 //PCHL
 void jump_hl(cpu *cpu)
 {
-    cpu->pc = mem_check(cpu->ROM_SIZE, join(cpu->h, cpu->l), "ROM");
+    cpu->pc = mem_check(cpu->ROM_SIZE, join(cpu->h, cpu->l), "ROM", cpu->pc);
 }
 
 //--------------------STACK ---------------------------------
