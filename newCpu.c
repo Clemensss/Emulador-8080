@@ -571,6 +571,198 @@ void tests(void)
     assert("join", join(a, b), (uint32_t)0xff);
 }
 
+//=========== stack ===================
+
+//PUSH rp
+void push(cpu *cpu, uint8_t rh, uint8_t rl)
+{
+    cpu->stack[--cpu->sp] = rh;
+    cpu->stack[--cpu->sp] = rl;
+}
+
+//PUSH PSW
+uint8_t get_psw(cpu *cpu)
+{
+    uint8_t psw = 0;
+
+    if(cpu->flags->c)  psw = set_bit(psw, 0);
+		       psw = set_bit(psw, 1);
+    if(cpu->flags->p)  psw = set_bit(psw, 2);
+  //if(cpu->flags->ac) psw = set_bit(psw, 4);
+    if(cpu->flags->Z)  psw = set_bit(psw, 6);
+    if(cpu->flags->S)  psw = set_bit(psw, 7);
+
+    return psw;
+}
+
+//POP rp
+void pop(cpu *cpu, uint8_t *rh, uint8_t *rl)
+{
+    *rl = stack_out(cpu, cpu->sp++);
+    *rh = stack_out(cpu, cpu->sp++);
+}
+
+void set_psw(cpu *cpu, uint8_t psw)
+{
+    cpu->flags->c = !!is_bit_set(psw, 0);
+    cpu->flags->p = !!is_bit_set(psw, 2);
+  //cpu->flags->ac= !!is_bit_set(psw, 4);
+    cpu->flags->z = !!is_bit_set(psw, 6);
+    cpu->flags->s = !!is_bit_set(psw, 7);
+}
+
+//POP PSW
+void pop_psw(cpu *cpu)
+{
+    uint8_t psw;
+    pop(state, &cpu->a, &psw);
+
+    set_psw(cpu, psw);
+}
+
+void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
+{
+    mem_check(cpu, addr);
+    cpu->stack[addr] = val;
+}
+
+uint8_t stack_out(cpu *cpu, uint16_t addr)
+{
+    return cpu->stack[addr];
+}
+
+//XTHL
+/*
+ * I know it's weird but, bear with me, this is a literal
+ * one time case, so yeah, I am doing the weird swap to
+ * maintain the stack data encapsulated
+ */
+void ex_hl_sp(cpu *cpu)
+{
+    uint8_t tmp;
+
+    tmp = cpu->l;
+    cpu->l = stack_out(cpu, cpu->sp);
+    stack_in(cpu, cpu->sp, tmp);
+    
+    tmp = cpu->h;
+    cpu->h = stack_out(cpu, cpu->sp+1);
+    stack_in(cpu, cpu->sp+1, tmp);
+}
+
+//SPHL
+void store_hl_sp(cpu *cpu)
+{
+    cpu->sp = join(cpu->h, cpu->l);
+}
+
+//--------------------- IO ----------------------
+//IN port
+void input(state8080 *state, port *p)
+{
+    REG->PC++;  
+    uint8_t data = get_PC_data(state);
+
+    state->registers->A = read_i_port(p, data);
+
+    if(data == 0x01)
+    {
+	    p->input->port1 = 0x0;
+    }
+
+    else if(data == 0x02) p->input->port2 = 0x0;
+    else if(data == 0x03) p->input->port3 = 0x0;
+}
+
+//OUT port
+void output(state8080 *state, port *p)
+{
+    REG->PC++;  
+    uint8_t data = get_PC_data(state);
+
+    write_o_port(p, data, REG->A);
+}
+
+//EI
+void enable_inter(state8080 *state)
+{
+   //state->inter_ind = 0;
+}
+
+//DI
+void disable_inter(state8080 *state)
+{
+    state->interrupt = 0;
+}
+
+//HLT
+void halt(state8080 *state)
+{
+    state->halt = 1;
+}
+
+
+//========== flow control ==========
+
+/*
+ * Checks if addr given to PC is or not within the given bound
+ */
+uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname)
+{
+    if(addr < bound){ return addr; }
+    else{perror("ERROR segmentation fault: %s\nPC = %#04x", memname, cpu->pc); exit(1);}
+}
+
+//JMP addr
+/*
+ * If you are ever confused, the jump ALWAYS adds up 2 to pc,
+ * if or if not the condition is true
+ */
+void jump(cpu *cpu, uint8_t cond)
+{
+    uint8_t byte2 = mem_out(cpu, ++cpu->pc);
+    uint8_t byte3 = mem_out(cpu, ++cpu->pc);
+    uint16_t addr = join(byte3, byte2);
+
+    if(cond)
+    { 
+	cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM");
+    }
+}
+
+//CALL addr
+void call(cpu *cpu, uint8_t cond)
+{
+    uint8_t pch, pcl;
+    push(cpu, get_rh(cpu->pc+3), get_rl(cpu->pc+3));
+    jump(cpu, cond);
+}
+
+//RET
+void ret(cpu *cpu, uint8_t cond)
+{
+    if(cond)
+    {
+	uint8_t rh, rl;
+	pop(cpu, &rh, &rl);
+	cpu->pc = mem_check(cpu->ROM_SIZE, join(rh, rl), "ROM");
+    }
+}
+
+//RST n
+void rst_n(cpu *cpu, uint8_t opcode)
+{
+    push(state, get_rh(cpu->pc), get_rl(cpu->pc));
+    cpu->pc = mem_check(cpu->ROM_SIZE, opcode << 3, "ROM");
+}
+
+//PCHL
+void jump_hl(cpu *cpu)
+{
+    mem_check(cpu, join(cpu->h, cpu->l);
+}
+
+//--------------------STACK ---------------------------------
 
 int inst_process(cpu *cpu, int opcode)
 {
@@ -834,7 +1026,7 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xe5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH H	
 	case 0xf5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH PSW	
 
-	// ========= control flow ===========
+	// ========= flow control ===========
 	case 0xc3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JMP adr	
 	case 0xc2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNZ adr	
 	case 0xd2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNC adr	
