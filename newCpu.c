@@ -38,22 +38,27 @@ cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
 {
     struct cpu_s* cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
     
-    cpu->a = 0;
-    cpu->b = 0;
-    cpu->c = 0;
-    cpu->d = 0;
-    cpu->e = 0;
-    cpu->h = 0;
-    cpu->l = 0;
+    cpu->a  = 0;
+    cpu->b  = 0;
+    cpu->c  = 0;
+    cpu->d  = 0;
+    cpu->e  = 0;
+    cpu->h  = 0;
+    cpu->l  = 0;
     cpu->pc = 0;
     cpu->sp = 0;
     
+    cpu->halt        = 0;
+    cpu->intr        = 0;
+    cpu->intr_enable = 0;
+
     cpu->STACK_SIZE = stack_size;
     cpu->RAM_SIZE = ram_size;
 
     cpu->flags = init_flags();
 
     load_rom(file_name, cpu->rom, &cpu->ROM_SIZE);
+
     cpu->ram   = (uint8_t*)malloc(sizeof(uint8_t)*cpu->RAM_SIZE);
     cpu->stack = (uint8_t*)malloc(sizeof(uint8_t)*cpu->STACK_SIZE);
     cpu->ports = (uint8_t*)malloc(sizeof(uint8_t)*PORT_SIZE);
@@ -203,19 +208,19 @@ void set_flags_all(cpu *cpu, uint16_t result)
     set_flag_z(cpu, result);
 }
 
-void set_reset_flags(cpu *cpu, uint16_t result, uint8_t *arr_flag)
+void set_reset_flags(cpu *cpu, uint16_t result, const uint8_t *arr_flag)
 {
     if(arr_flag[0]) set_flag_z(cpu, result);
-    else cpu->flags->z = 0;
+    else if(arr_flag[0] < 0)cpu->flags->z = 0;
 
-    if(arr_flag[1]) set_flag_p(cpu, result);
-    else cpu->flags->p = 0;
+    if(arr_flag[1]) set_flag_s(cpu, result);
+    else if(arr_flag[1] < 0)cpu->flags->s = 0;
 
-    if(arr_flag[2]) set_flag_s(cpu, result);
-    else cpu->flags->s = 0;
+    if(arr_flag[2]) set_flag_p(cpu, result);
+    else if(arr_flag[2] < 0)cpu->flags->p = 0;
 
     if(arr_flag[3]) set_flag_c(cpu, result);
-    else cpu->flags->c = 0;
+    else if(arr_flag[3] < 0)cpu->flags->c = 0;
 }
 
 void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
@@ -356,6 +361,11 @@ uint8_t direct_value(cpu *cpu)
     return mem_out(cpu, join(byte3, byte2));
 }
 
+uint8_t register_indirect(cpu *cpu)
+{
+    return mem_out(cpu, join(cpu->h, cpu->l));
+}
+
 /* Generic function that represents the ALU
  * Receives the addressing mode, a function pointer to an operation
  * the val r2 that this operation will operate on,
@@ -363,12 +373,13 @@ uint8_t direct_value(cpu *cpu)
  * and an array containing the flags that should be set 
  */
 uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation, 
-	         uint8_t val, uint8_t add_flag, uint8_t *set_flag_arr)
+	         uint8_t val, uint8_t add_flag, const uint8_t *set_flag_arr)
 {
     uint16_t result;
-
-    if(addr_mode == IMMEDIATE)    val = immediate_value(cpu);
-    else if(addr_mode == DIRECT)  val = direct_value(cpu);
+    
+    if(addr_mode == IMMEDIATE)              val = immediate_value(cpu);
+    else if(addr_mode == REGISTER_INDIRECT) val = register_indirect(cpu);
+    else if(addr_mode == DIRECT)            val = direct_value(cpu);
 
     result = operation(cpu->a, val, add_flag);
     set_reset_flags(cpu, result, set_flag_arr);
@@ -605,10 +616,7 @@ void jump(cpu *cpu, uint8_t cond)
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
     uint16_t addr = join(byte3, byte2);
 
-    if(cond)
-    { 
-	cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);
-    }
+    if(cond) {cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);}
 }
 
 //CALL addr
@@ -643,7 +651,18 @@ void jump_hl(cpu *cpu)
     cpu->pc = mem_check(cpu->ROM_SIZE, join(cpu->h, cpu->l), "ROM", cpu->pc);
 }
 
-//--------------------STACK ---------------------------------
+//DAA 
+void decimal_adj_acc(cpu *cpu)
+{
+    //if((cpu->a & 0x0f) > 0x9 || cpu->flags->ac) cpu += 6;
+    //if((cpu->a >> 4) > 0x9 || cpu->flags->ac)
+    //{
+    //    uint8_t tmp = (cpu->a >> 4) + 6;
+    //    cpu->a = (tmp << 4) | (cpu->a & 0x0f);
+    //}
+}
+
+// ================ non private function ==================
 
 int inst_process(cpu *cpu, int opcode)
 {
@@ -657,9 +676,8 @@ int inst_process(cpu *cpu, int opcode)
     switch(opcode)
     {
 	case 0x76: cpu->halt = 1; break; //    HLT
-	case 0xf3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    DI	
-	case 0xfb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    EI	
-
+	case 0xf3: cpu->intr_enable = 0; break; //    DI	
+	case 0xfb: cpu->intr_enable = 1;  break; //    EI	
 	
 	case 0x2f: cpu->a = ~cpu->a               ; break; //    CMA
 	case 0x37: cpu->flags->c = 1              ; break; //    STC
@@ -670,9 +688,9 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x22: store_hl_addr(cpu); break;     //    SHLD adr
 	case 0x2a: load_hl_addr(cpu); break;      //    LHLD adr
 
-	case 0xe3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    XTHL	
-	case 0xe9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PCHL	
-	case 0xf9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SPHL	
+	case 0xe3: ex_hl_sp(cpu); break; //    XTHL	
+	case 0xf9: store_hl_sp(cpu); break; //    SPHL	
+
 	case 0xeb: swap_hl_de(cpu); break;        //    XCHG	    
 
 	case 0x3a: load_a_addr(cpu) ; break;      //    LDA adr
@@ -773,10 +791,10 @@ int inst_process(cpu *cpu, int opcode)
 	
 	case 0x09: add_rp_hl(cpu, cpu->b, cpu->c); break; //    DAD B	
 
-	case 0x17: rotate_left(cpu, CARRY_OFF) ; break; //    RAL
+	case 0x17: rotate_left (cpu, CARRY_OFF); break; //    RAL
 	case 0x1f: rotate_right(cpu, CARRY_OFF); break; //   RAR
-	case 0x07: rotate_left(cpu, CARRY_ON) ; break; //    RLC
-	case 0x0f: rotate_right(cpu, CARRY_ON); break; //   RRC
+	case 0x07: rotate_left (cpu, CARRY_ON);  break; //    RLC
+	case 0x0f: rotate_right(cpu, CARRY_ON);  break; //   RRC
 
 	case 0x03: incr_rp(&cpu->b, &cpu->c); break; //    INX B	
 	case 0x13: incr_rp(&cpu->d, &cpu->e); break; //    INX D	
@@ -785,22 +803,22 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x0b: decr_rp(&cpu->b, &cpu->c); break; //    DCX B	
 	case 0x1b: decr_rp(&cpu->d, &cpu->e); break;//     DCX D
 	case 0x2b: decr_rp(&cpu->h, &cpu->l); break; //    DCX H
+	
+	case 0x04: cpu->b = alu_inst(cpu, REGISTER, incr, cpu->b, CARRY_OFF, ALL_BUT_CY); break; //    INR B	
+	case 0x0c: cpu->c = alu_inst(cpu, REGISTER, incr, cpu->c, CARRY_OFF, ALL_BUT_CY); break; //    INR C	
+	case 0x14: cpu->d = alu_inst(cpu, REGISTER, incr, cpu->d, CARRY_OFF, ALL_BUT_CY); break; //    INR D	
+	case 0x1c: cpu->e = alu_inst(cpu, REGISTER, incr, cpu->e, CARRY_OFF, ALL_BUT_CY); break; //    INR E	
+	case 0x24: cpu->h = alu_inst(cpu, REGISTER, incr, cpu->h, CARRY_OFF, ALL_BUT_CY); break; //    INR H	
+	case 0x2c: cpu->l = alu_inst(cpu, REGISTER, incr, cpu->l, CARRY_OFF, ALL_BUT_CY); break; //    INR L	
+	case 0x3c: cpu->a = alu_inst(cpu, REGISTER, incr, cpu->a, CARRY_OFF, ALL_BUT_CY); break; //    INR A	
 
-	case 0x04: cpu->b = alu_inst(cpu, REGISTER, incr, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    INR B	
-	case 0x0c: cpu->c = alu_inst(cpu, REGISTER, incr, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    INR C	
-	case 0x14: cpu->d = alu_inst(cpu, REGISTER, incr, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    INR D	
-	case 0x1c: cpu->e = alu_inst(cpu, REGISTER, incr, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    INR E	
-	case 0x24: cpu->h = alu_inst(cpu, REGISTER, incr, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    INR H	
-	case 0x2c: cpu->l = alu_inst(cpu, REGISTER, incr, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    INR L	
-	case 0x3c: cpu->a = alu_inst(cpu, REGISTER, incr, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    INR A	
-
-	case 0x0d: cpu->c = alu_inst(cpu, REGISTER, decr, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    DCR C	
-	case 0x05: cpu->b = alu_inst(cpu, REGISTER, decr, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    DCR B	
-	case 0x15: cpu->d = alu_inst(cpu, REGISTER, decr, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    DCR D	
-	case 0x1d: cpu->e = alu_inst(cpu, REGISTER, decr, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    DCR E	
-	case 0x25: cpu->h = alu_inst(cpu, REGISTER, decr, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    DCR H	
-	case 0x2d: cpu->l = alu_inst(cpu, REGISTER, decr, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    DCR L	
-	case 0x3d: cpu->a = alu_inst(cpu, REGISTER, decr, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    DCR A	
+	case 0x05: cpu->b = alu_inst(cpu, REGISTER, decr, cpu->b, CARRY_OFF, ALL_BUT_CY); break; //    DCR B	
+	case 0x0d: cpu->c = alu_inst(cpu, REGISTER, decr, cpu->c, CARRY_OFF, ALL_BUT_CY); break; //    DCR C	
+	case 0x15: cpu->d = alu_inst(cpu, REGISTER, decr, cpu->d, CARRY_OFF, ALL_BUT_CY); break; //    DCR D	
+	case 0x1d: cpu->e = alu_inst(cpu, REGISTER, decr, cpu->e, CARRY_OFF, ALL_BUT_CY); break; //    DCR E	
+	case 0x25: cpu->h = alu_inst(cpu, REGISTER, decr, cpu->h, CARRY_OFF, ALL_BUT_CY); break; //    DCR H	
+	case 0x2d: cpu->l = alu_inst(cpu, REGISTER, decr, cpu->l, CARRY_OFF, ALL_BUT_CY); break; //    DCR L	
+	case 0x3d: cpu->a = alu_inst(cpu, REGISTER, decr, cpu->a, CARRY_OFF, ALL_BUT_CY); break; //    DCR A	
 
 	case 0x39: add_sp_hl(cpu) ; break; //    DAD SP	
 	case 0x3b: decr_sp(cpu)   ; break; //    DCX SP	
@@ -846,47 +864,48 @@ int inst_process(cpu *cpu, int opcode)
 	case 0x9d: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->l, CARRY_ON, ALL_FLAGS); break; //    SBB L	
 	case 0x9f: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->a, CARRY_ON, ALL_FLAGS); break; //    SBB A	
 
-	case 0xc6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ADI D8	
-	case 0xce: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ACI D8	
-	case 0xd6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SUI D8	
-	case 0xde: printf("Missing instruction opcode: %#04x\n", opcode); break; //    SBI D8	
-	case 0xe6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ANI D8	
-	case 0xee: printf("Missing instruction opcode: %#04x\n", opcode); break; //    XRI D8	    
-	case 0xf6: printf("Missing instruction opcode: %#04x\n", opcode); break; //    ORI D8	    
-	case 0xfe: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPI D8	    
+	case 0xc6: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ADI D8	
+	case 0xce: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //    ACI D8	
+	case 0xd6: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    SUI D8	
+	case 0xde: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //    SBI D8	
 
-	case 0x8e: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ADC M	
-	case 0x86: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_ON, ALL_FLAGS);  break; //   ADD M	
-	case 0x96: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   SUB M	
-	case 0x9e: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_ON, ALL_FLAGS);  break; //   SBB M	
-	case 0xa6: cpu->a = alu_inst(cpu, IMMEDIATE, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ANA M	
-	case 0xae: cpu->a = alu_inst(cpu, IMMEDIATE, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   XRA M	
-	case 0xb6: cpu->a = alu_inst(cpu, IMMEDIATE, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ORA M	
-	case 0xbe: cpu->a = alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
+	case 0xe6: cpu->a = alu_inst(cpu, IMMEDIATE, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ANI D8	
+	case 0xee: cpu->a = alu_inst(cpu, IMMEDIATE, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    XRI D8	    
+	case 0xf6: cpu->a = alu_inst(cpu, IMMEDIATE, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ORI D8	    
+	case 0xfe: cpu->a = alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    CPI D8	    
 
-	case 0xa0: cpu->a = alu_inst(cpu, REGISTER, and, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ANA B
-	case 0xa1: cpu->a = alu_inst(cpu, REGISTER, and, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    ANA C
-	case 0xa2: cpu->a = alu_inst(cpu, REGISTER, and, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    ANA D
-	case 0xa3: cpu->a = alu_inst(cpu, REGISTER, and, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    ANA E
-	case 0xa4: cpu->a = alu_inst(cpu, REGISTER, and, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    ANA H
-	case 0xa5: cpu->a = alu_inst(cpu, REGISTER, and, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    ANA L
-	case 0xa7: cpu->a = alu_inst(cpu, REGISTER, and, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    ANA A
+	case 0x8e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ADC M	
+	case 0x86: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   ADD M	
+	case 0x96: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   SUB M	
+	case 0x9e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, sub, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   SBB M	
+	case 0xa6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ANA M	
+	case 0xae: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   XRA M	
+	case 0xb6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ORA M	
+	case 0xbe: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
+	
+	case 0xa0: cpu->a = alu_inst(cpu, REGISTER, and, cpu->b, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA B
+	case 0xa1: cpu->a = alu_inst(cpu, REGISTER, and, cpu->c, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA C
+	case 0xa2: cpu->a = alu_inst(cpu, REGISTER, and, cpu->d, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA D
+	case 0xa3: cpu->a = alu_inst(cpu, REGISTER, and, cpu->e, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA E
+	case 0xa4: cpu->a = alu_inst(cpu, REGISTER, and, cpu->h, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA H
+	case 0xa5: cpu->a = alu_inst(cpu, REGISTER, and, cpu->l, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA L
+	case 0xa7: cpu->a = alu_inst(cpu, REGISTER, and, cpu->a, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA A
 
-	case 0xa8: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    XRA B
-	case 0xa9: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    XRA C
-	case 0xaa: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->d, CARRY_OFF, ALL_FLAGS); break; //    XRA D
-	case 0xab: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->e, CARRY_OFF, ALL_FLAGS); break; //    XRA E
-	case 0xac: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->h, CARRY_OFF, ALL_FLAGS); break; //    XRA H
-	case 0xad: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->l, CARRY_OFF, ALL_FLAGS); break; //    XRA L
-	case 0xaf: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    XRA A
+	case 0xa8: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->b, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA B
+	case 0xa9: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->c, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA C
+	case 0xaa: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->d, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA D
+	case 0xab: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->e, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA E
+	case 0xac: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->h, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA H
+	case 0xad: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->l, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA L
+	case 0xaf: cpu->a = alu_inst(cpu, REGISTER, xor, cpu->a, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRA A
 
-	case 0xb0: cpu->a = alu_inst(cpu, REGISTER, or, cpu->b, CARRY_OFF, ALL_FLAGS); break; //     ORA B
-	case 0xb1: cpu->a = alu_inst(cpu, REGISTER, or, cpu->c, CARRY_OFF, ALL_FLAGS); break; //     ORA C
-	case 0xb2: cpu->a = alu_inst(cpu, REGISTER, or, cpu->d, CARRY_OFF, ALL_FLAGS); break; //     ORA D
-	case 0xb3: cpu->a = alu_inst(cpu, REGISTER, or, cpu->e, CARRY_OFF, ALL_FLAGS); break; //     ORA E
-	case 0xb4: cpu->a = alu_inst(cpu, REGISTER, or, cpu->h, CARRY_OFF, ALL_FLAGS); break; //     ORA H
-	case 0xb5: cpu->a = alu_inst(cpu, REGISTER, or, cpu->l, CARRY_OFF, ALL_FLAGS); break; //     ORA L
-	case 0xb7: cpu->a = alu_inst(cpu, REGISTER, or, cpu->a, CARRY_OFF, ALL_FLAGS); break; //     ORA A
+	case 0xb0: cpu->a = alu_inst(cpu, REGISTER, or, cpu->b, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA B
+	case 0xb1: cpu->a = alu_inst(cpu, REGISTER, or, cpu->c, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA C
+	case 0xb2: cpu->a = alu_inst(cpu, REGISTER, or, cpu->d, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA D
+	case 0xb3: cpu->a = alu_inst(cpu, REGISTER, or, cpu->e, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA E
+	case 0xb4: cpu->a = alu_inst(cpu, REGISTER, or, cpu->h, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA H
+	case 0xb5: cpu->a = alu_inst(cpu, REGISTER, or, cpu->l, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA L
+	case 0xb7: cpu->a = alu_inst(cpu, REGISTER, or, cpu->a, CARRY_OFF, ALL_CY_AC_CLEARED); break; //     ORA A
 
 	case 0xb8: alu_inst(cpu, REGISTER, cmp, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    CMP B	
 	case 0xb9: alu_inst(cpu, REGISTER, cmp, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    CMP C	
@@ -897,71 +916,81 @@ int inst_process(cpu *cpu, int opcode)
 	case 0xbf: alu_inst(cpu, REGISTER, cmp, cpu->a, CARRY_OFF, ALL_FLAGS); break; //    CMP A	
 
 	// ========= stack =========
-	case 0xc1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP B	
-	case 0xd1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP D	
-	case 0xe1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP H	
-	case 0xf1: printf("Missing instruction opcode: %#04x\n", opcode); break; //    POP PSW	
+	case 0xc1: pop(cpu, &cpu->b, &cpu->c); break; //    POP B	
+	case 0xd1: pop(cpu, &cpu->d, &cpu->e); break; //    POP D	
+	case 0xe1: pop(cpu, &cpu->h, &cpu->l); break; //    POP H	
+	case 0xf1: pop_psw(cpu); break; //    POP PSW	
 
-	case 0xc5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH B	
-	case 0xd5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH D	
-	case 0xe5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH H	
-	case 0xf5: printf("Missing instruction opcode: %#04x\n", opcode); break; //    PUSH PSW	
+	case 0xc5: push(cpu, cpu->b, cpu->c); break; //    PUSH B	
+	case 0xd5: push(cpu, cpu->d, cpu->e); break; //    PUSH D	
+	case 0xe5: push(cpu, cpu->h, cpu->l); break; //    PUSH H	
+	case 0xf5: push(cpu, cpu->a, get_psw(cpu)); break; //    PUSH PSW	
 
 	// ========= flow control ===========
-	case 0xc3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JMP adr	
-	case 0xc2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNZ adr	
-	case 0xd2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JNC adr	
-	case 0xda: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JC adr	
-	case 0xe2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JPO adr	
-	case 0xea: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JPE adr	    
-	case 0xf2: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JP adr	    
-	case 0xfa: printf("Missing instruction opcode: %#04x\n", opcode); break; //    JM adr	    
 
-	case 0xcd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CALL adr
-	case 0xc4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CNZ  adr	
-	case 0xcc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CZ   adr	
-	case 0xd4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CNC  adr	
-	case 0xdc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CC   adr	
-	case 0xfc: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CM   adr	    
-	case 0xf4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CP   adr	    
-	case 0xe4: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPO  adr	
-	case 0xec: printf("Missing instruction opcode: %#04x\n", opcode); break; //    CPE  adr	    
-	
-	case 0xc7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 0	
-	case 0xcf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 1	
-	case 0xd7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 2	
-	case 0xdf: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 3	
-	case 0xe7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 4	
-	case 0xef: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 5	    
-	case 0xf7: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 6	    
-	case 0xff: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RST 7	
+	case 0xe9: jump_hl(cpu); break; //    PCHL	
 
-	case 0xc0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RNZ	
-	case 0xc9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RET	
-	case 0xc8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RZ	
-	case 0xd8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RC	
-	case 0xd0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RNC	
-	case 0xe0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RPO	
-	case 0xe8: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RPE	
-	case 0xf0: printf("Missing instruction opcode: %#04x\n", opcode); break; //    RP	
-	
+	case 0xc3: jump(cpu, NO_COND); break; //    JMP adr	
+	case 0xcd: call(cpu, NO_COND); break; //    CALL adr
+	case 0xc9: ret(cpu,  NO_COND); break; //    RET	
+
+	case 0xc2: jump(cpu, !cpu->flags->z); break; //    JNZ adr	
+	case 0xd2: jump(cpu, !cpu->flags->c); break; //    JNC adr	
+	case 0xe2: jump(cpu, !cpu->flags->p); break; //    JPO adr	
+	case 0xf2: jump(cpu, !cpu->flags->s); break; //    JP adr	    
+
+	case 0xc4: call(cpu, !cpu->flags->z); break; //    CNZ  adr	
+	case 0xd4: call(cpu, !cpu->flags->c); break; //    CNC  adr	
+	case 0xe4: call(cpu, !cpu->flags->p); break; //    CPO  adr	
+	case 0xf4: call(cpu, !cpu->flags->s); break; //    CP   adr	    
+
+	case 0xc0: ret(cpu, !cpu->flags->z); break; //    RNZ	
+	case 0xd0: ret(cpu, !cpu->flags->c); break; //    RNC	
+	case 0xe0: ret(cpu, !cpu->flags->p); break; //    RPO	
+	case 0xf0: ret(cpu, !cpu->flags->s); break; //    RP	
+
+	case 0xca: jump(cpu, cpu->flags->z); break; //    JZ adr
+	case 0xda: jump(cpu, cpu->flags->c); break; //    JC adr	
+	case 0xea: jump(cpu, cpu->flags->p); break; //    JPE adr	    
+	case 0xfa: jump(cpu, cpu->flags->s); break; //    JM adr	    
+
+	case 0xcc: call(cpu, cpu->flags->z); break; //    CZ   adr	
+	case 0xdc: call(cpu, cpu->flags->c); break; //    CC   adr	
+	case 0xec: call(cpu, cpu->flags->p); break; //    CPE  adr	    
+	case 0xfc: call(cpu, cpu->flags->s); break; //    CM   adr	    
+                                         
+	case 0xc8: ret(cpu, cpu->flags->z); break; //    RZ	
+	case 0xd8: ret(cpu, cpu->flags->c); break; //    RC	
+	case 0xe8: ret(cpu, cpu->flags->p); break; //    RPE	
+	case 0xf8: ret(cpu, cpu->flags->s); break; //    RM
+
+	case 0xc7: rst_n(cpu, 0); break; //    RST 0	
+	case 0xcf: rst_n(cpu, 1); break; //    RST 1	
+	case 0xd7: rst_n(cpu, 2); break; //    RST 2	
+	case 0xdf: rst_n(cpu, 3); break; //    RST 3	
+	case 0xe7: rst_n(cpu, 4); break; //    RST 4	
+	case 0xef: rst_n(cpu, 5); break; //    RST 5	    
+	case 0xf7: rst_n(cpu, 6); break; //    RST 6	    
+	case 0xff: rst_n(cpu, 7); break; //    RST 7	
+
+
 	//======== IO =========
-	case 0xd3: printf("Missing instruction opcode: %#04x\n", opcode); break; //    OUT D8	
-	case 0xdb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    IN D8	
+	case 0xd3: port_output(cpu); break; //    OUT D8	
+	case 0xdb: port_input(cpu);  break; //    IN D8	
 
 	//========= NOP =======
-	case 0x08: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -
-	case 0x10: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x18: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x20: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x28: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x30: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0x38: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0xcb: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -		
-	case 0xd9: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0xdd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0xed: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
-	case 0xfd: printf("Missing instruction opcode: %#04x\n", opcode); break; //    -	
+	case 0x08: break; //    -
+	case 0x10: break; //    -	
+	case 0x18: break; //    -	
+	case 0x20: break; //    -	
+	case 0x28: break; //    -	
+	case 0x30: break; //    -	
+	case 0x38: break; //    -	
+	case 0xcb: break; //    -		
+	case 0xd9: break; //    -	
+	case 0xdd: break; //    -	
+	case 0xed: break; //    -	
+	case 0xfd: break; //    -	
 
 	default: printf("%#04x not found\n", opcode);
     }
