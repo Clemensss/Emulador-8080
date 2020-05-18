@@ -1,3 +1,6 @@
+#ifndef CPU_H_   /* Include guard */
+#define CPU_H_
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -15,34 +18,6 @@
 #define DIRECT    1 
 #define IMMEDIATE 2 
 #define REGISTER_INDIRECT 3
-
-//set all flags
-const uint8_t ALL_FLAGS[] = {1,1,1,1};
-const uint8_t ALL_CY_CLEARED[] =  {1,1,1,-1};
-const uint8_t ALL_CY_AC_CLEARED[] =  {1,1,1,-1};
-const uint8_t ALL_BUT_CY[] = {1,1,1,0};
-
-const uint8_t instruction_cycle[] = {
-	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4, //0x00..0x0f
-	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4,
-	4, 10, 16, 5, 5, 5, 7, 4, 4, 10, 16, 5, 5, 5, 7, 4,
-	4, 10, 13, 5, 10, 10, 10, 4, 4, 10, 13, 5, 5, 5, 7, 4,
-
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5, //0x40..0x4f
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5,
-	5, 5, 5, 5, 5, 5, 7, 5, 5, 5, 5, 5, 5, 5, 7, 5,
-	7, 7, 7, 7, 7, 7, 7, 7, 5, 5, 5, 5, 5, 5, 7, 5,
-
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4, //0x80..8x4f
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-	4, 4, 4, 4, 4, 4, 7, 4, 4, 4, 4, 4, 4, 4, 7, 4,
-
-	11, 10, 10, 10, 17, 11, 7, 11, 11, 10, 10, 10, 10, 17, 7, 11, //0xc0..0xcf
-	11, 10, 10, 10, 17, 11, 7, 11, 11, 10, 10, 10, 10, 17, 7, 11,
-	11, 10, 10, 18, 17, 11, 7, 11, 11, 5, 10, 5, 17, 17, 7, 11,
-	11, 10, 10, 4, 17, 11, 7, 11, 11, 5, 10, 4, 17, 17, 7, 11,
-    };
 
 /*
  * Easier to read function pointer for the operations
@@ -202,5 +177,9 @@ int      inst_process(cpu *cpu, int opcode)                    ;
 void     port_input(cpu *cpu)                                 ;
 void     port_output(cpu *cpu)                                ;
 
+
+void debug_emu(cpu *cpu, uint8_t opcode);
 void     assert(char *fun, uint32_t result, uint32_t equal_to);
 void     tests(void)                                          ;
+
+#endif
