@@ -78,6 +78,7 @@ struct cpu_s
 
     uint8_t halt:1;
     uint8_t intr:1;
+    uint8_t intr_opcode;
     uint8_t intr_enable:1;
 };
 

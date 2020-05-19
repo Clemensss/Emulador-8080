@@ -78,6 +78,7 @@ cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
     
     cpu->halt        = 0;
     cpu->intr        = 0;
+    cpu->intr_opcode = 0;
     cpu->intr_enable = 0;
 
     cpu->STACK_SIZE = stack_size;
@@ -127,30 +128,62 @@ uint8_t get_rl(uint16_t bytes)
     return bytes;
 }
 
+//Controls virtualization of memory
+/*
+ * If the addr is smaller than ROM_SIZE then return that 
+ * Address in the rom arr, else, do the calculations
+ * nescessary to map the address to an index of the ram arr 
+ */
+
 uint16_t mem_out(cpu *cpu, uint16_t addr)
 {
-    if(addr <= cpu->ROM_SIZE) return cpu->rom[addr];
+    uint16_t virtual_addr;
 
-    uint16_t virtual_addr = addr - (cpu->ROM_SIZE + cpu->STACK_SIZE);
-    if(virtual_addr < 0 || virtual_addr > cpu->RAM_SIZE)
+    if(addr <= cpu->ROM_SIZE) 
+	return cpu->rom[addr];
+
+    else if(addr <= (cpu->STACK_SIZE + cpu->ROM_SIZE)) 
+	return stack_out(cpu, addr);
+
+    else if(addr < (cpu->ROM_SIZE + cpu->STACK_SIZE +  cpu->RAM_SIZE))
     {
-	printf("ERROR Address %#04x not in ram or rom\n");
-	exit(1);
+	virtual_addr = addr - (cpu->STACK_SIZE + cpu->RAM_SIZE);
+	return cpu->ram[virtual_addr];
     }
 
-    return cpu->ram[virtual_addr];
+    else
+    {
+	printf("ERROR Address %#04x out of bound PC = %d\n", cpu->pc);
+	exit(1);
+    }
 }
 
 void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
-    uint16_t virtual_addr = addr - (cpu->ROM_SIZE + cpu->STACK_SIZE);
-    if(virtual_addr < 0 || virtual_addr > cpu->RAM_SIZE)
+    
+    uint16_t virtual_addr;
+
+    if(addr <= cpu->ROM_SIZE) 
     {
-	printf("ERROR Address %#04x not in ram or rom\n");
+	printf("ERROR Address %#04x trying to write to rom PC = %d\n", cpu->pc);
 	exit(1);
     }
 
-    cpu->ram[virtual_addr] = val;
+    else if(addr <= (cpu->STACK_SIZE + cpu->ROM_SIZE))
+	stack_in(cpu, addr, val);
+
+    else if(addr < (cpu->ROM_SIZE + cpu->STACK_SIZE +  cpu->RAM_SIZE))
+    {
+	virtual_addr = addr - (cpu->STACK_SIZE + cpu->RAM_SIZE);
+	cpu->ram[virtual_addr] = val;
+    }
+
+    else
+    {
+	printf("ERROR Address %#04x out of bound PC = %d\n", cpu->pc);
+	exit(1);
+    }
+
 }
 
 /*
@@ -162,16 +195,19 @@ uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
     else{printf("ERROR segmentation fault: %s\nPC = %#04x\n", memname, pc); exit(1);}
 }
 
+/*
+ * Controls virtualization of the stack 
+ */
 void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
 {
-    addr = mem_check(cpu->STACK_SIZE, addr, "STACK", cpu->pc);
+    addr = mem_check((cpu->STACK_SIZE + cpu->ROM_SIZE), addr, "STACK", cpu->pc);
     cpu->stack[addr] = val;
 }
 
 uint8_t stack_out(cpu *cpu, uint16_t addr)
 {
+    uint16_t virtual_addr = mem_check((cpu->STACK_SIZE + cpu->ROM_SIZE), addr, "STACK", cpu->pc);
     uint16_t virtual_addr = addr - cpu->ROM_SIZE;
-    virtual_addr = mem_check(cpu->STACK_SIZE, virtual_addr, "STACK", cpu->pc);
     return cpu->stack[virtual_addr];
 }
 
@@ -716,11 +752,11 @@ int inst_process(cpu *cpu, int opcode)
 {
     //uint8_t opcode = mem_out(cpu, cpu-pc);
 
-    /*if(state->interrupt) 
+    if(state->interrupt) 
     {
 	opcode = state->inter_opcode;
 	state->interrupt = 0;
-    }*/
+    }
     switch(opcode)
     {
 	case 0x76: cpu->halt = 1; break; //    HLT
