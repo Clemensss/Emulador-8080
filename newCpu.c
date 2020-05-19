@@ -62,6 +62,10 @@ void memset_zero(uint8_t *arr, uint32_t arr_size)
     for(int i = 0; i < arr_size; i++) arr[i] = 0;
 }
 
+/*
+ * Initializes a cpu_s struct and loads a rom into memory with a defined
+ * stack and ram size 
+ */
 cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
 {
     struct cpu_s* cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
@@ -165,7 +169,7 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 
     if(addr <= cpu->ROM_SIZE) 
     {
-	printf("ERROR Address %#04x trying to write to rom PC = %d\n", cpu->pc);
+	printf("ERROR Address %#04x trying to write to rom\nPC = %d\n", cpu->pc);
 	exit(1);
     }
 
@@ -180,7 +184,7 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 
     else
     {
-	printf("ERROR Address %#04x out of bound PC = %d\n", cpu->pc);
+	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
 	exit(1);
     }
 
@@ -200,14 +204,30 @@ uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
  */
 void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
 {
-    addr = mem_check((cpu->STACK_SIZE + cpu->ROM_SIZE), addr, "STACK", cpu->pc);
-    cpu->stack[addr] = val;
+    uint16_t virtual_addr;
+
+    if(addr <= cpu->ROM_SIZE || addr >= (cpu->ROM_SIZE + cpu->STACK_SIZE + cpu->RAM_SIZE))
+    {
+	printf("ERROR Address %#04x invalid write to stack\nPC= %d\n", cpu->pc);
+	exit(1);
+    }
+
+    virtual_addr = addr - cpu->ROM_SIZE;
+    cpu->stack[virtual_addr] = val;
 }
 
 uint8_t stack_out(cpu *cpu, uint16_t addr)
 {
-    uint16_t virtual_addr = mem_check((cpu->STACK_SIZE + cpu->ROM_SIZE), addr, "STACK", cpu->pc);
-    uint16_t virtual_addr = addr - cpu->ROM_SIZE;
+    uint16_t virtual_addr;
+
+    if(addr <= cpu->ROM_SIZE || addr >= (cpu->ROM_SIZE + cpu->STACK_SIZE + cpu->RAM_SIZE))
+    {
+	printf("ERROR Address %#04x invalid read to stack\nPC= %d\n", cpu->pc);
+	exit(1);
+    }
+
+    virtual_addr = addr - cpu->ROM_SIZE;
+
     return cpu->stack[virtual_addr];
 }
 
@@ -746,26 +766,32 @@ void decimal_adj_acc(cpu *cpu)
 
 
 
-// ================ non private function ==================
+// ================ emulation ==================
 
-int inst_process(cpu *cpu, int opcode)
+/*
+ * Process an instruction and returns its cycle as defined in 
+ * the manual
+ */
+int inst_process(cpu *cpu)
 {
-    //uint8_t opcode = mem_out(cpu, cpu-pc);
+    uint8_t opcode = mem_out(cpu, cpu-pc);
 
-    if(state->interrupt) 
+    if(cpu->intr && cpu->intr_enable) 
     {
-	opcode = state->inter_opcode;
-	state->interrupt = 0;
+	opcode = cpu->intr_opcode;
+	cpu->intr = 0;
     }
+
     switch(opcode)
     {
-	case 0x76: cpu->halt = 1; break; //    HLT
+	//========== misc ============
+	case 0x76: cpu->halt = 1;        break; //    HLT
 	case 0xf3: cpu->intr_enable = 0; break; //    DI	
-	case 0xfb: cpu->intr_enable = 1;  break; //    EI	
+	case 0xfb: cpu->intr_enable = 1; break; //    EI	
 	
-	case 0x2f: cpu->a = ~cpu->a               ; break; //    CMA
-	case 0x37: cpu->flags->c = 1              ; break; //    STC
-	case 0x3f: cpu->flags->c = ~cpu->flags->c ; break; //    CMC
+	case 0x2f: cpu->a = ~cpu->a;               break; //    CMA
+	case 0x37: cpu->flags->c = 1;              break; //    STC
+	case 0x3f: cpu->flags->c = ~cpu->flags->c; break; //    CMC
 
 	// ======== data transfer =======
 	
@@ -777,8 +803,8 @@ int inst_process(cpu *cpu, int opcode)
 
 	case 0xeb: swap_hl_de(cpu); break;        //    XCHG	    
 
-	case 0x3a: load_a_addr(cpu) ; break;      //    LDA adr
-	case 0x32: store_a_addr(cpu)  ; break;    //    STA adr
+	case 0x3a: load_a_addr(cpu); break;      //    LDA adr
+	case 0x32: store_a_addr(cpu); break;    //    STA adr
 
 	case 0x01: load_rp_data(cpu, &cpu->b, &cpu->c); break; //    LXI B,D16	
 	case 0x11: load_rp_data(cpu, &cpu->d, &cpu->e); break; //    LXI C,D16	
@@ -1078,6 +1104,9 @@ int inst_process(cpu *cpu, int opcode)
 
 	default: printf("%#04x not found\n", opcode);
     }
+
+    //return instruction cycle 
+    return instruction_cycle[opcode];
 }
 
 //debungging function 

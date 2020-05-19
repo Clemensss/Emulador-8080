@@ -8,15 +8,35 @@
 !_TAG_PROGRAM_VERSION	0.0.0	/a3c87ab5/
 A	emulador.h	/^    uint8_t A;    $/;"	m	struct:Registers	typeref:typename:uint8_t
 AC	emulador.h	/^    uint8_t AC:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
+ACII	cpudiag.asm	/^ACII:	ACI	00AH	;A=F5H+0AH+CARRY(1)=0,C=1$/;"	l
+AIMM	cpudiag.asm	/^AIMM:	CPI	0	;A=F5H,C=0,Z=0$/;"	l
 ALL_BUT_CY	newCpu.c	/^const uint8_t ALL_BUT_CY[]        =  {1,1,1,0};$/;"	v	typeref:typename:const uint8_t[]
 ALL_CY_AC_CLEARED	newCpu.c	/^const uint8_t ALL_CY_AC_CLEARED[] =  {1,1,1,-1};$/;"	v	typeref:typename:const uint8_t[]
 ALL_CY_CLEARED	newCpu.c	/^const uint8_t ALL_CY_CLEARED[]    =  {1,1,1,-1};$/;"	v	typeref:typename:const uint8_t[]
 ALL_FLAGS	newCpu.c	/^const uint8_t ALL_FLAGS[]         =  {1,1,1,1};$/;"	v	typeref:typename:const uint8_t[]
+ANII	cpudiag.asm	/^ANII:	ANI	055H	;A=F0H<AND>55H=50H,C=0,P=1,S=0,Z=0$/;"	l
 BC	emulador.h	/^    uint8_t BC;    $/;"	m	struct:Registers	typeref:typename:uint8_t
+BDOS	cpudiag.asm	/^BDOS	EQU	00005H	;BDOS ENTRY TO CP\/M$/;"	d
+BYTEO	cpudiag.asm	/^BYTEO:	PUSH	PSW$/;"	l
+BYTO1	cpudiag.asm	/^BYTO1:	RRC$/;"	l
+BYTO2	cpudiag.asm	/^BYTO2:	ANI	0FH$/;"	l
+BYTO3	cpudiag.asm	/^BYTO3:	ADI	30H$/;"	l
+C010	cpudiag.asm	/^C010:	ANI	000H	;A=0,C=0,P=1,S=0,Z=1$/;"	l
+C020	cpudiag.asm	/^C020:	SUI	077H	;A=89H,C=1,P=0,S=1,Z=0$/;"	l
+C030	cpudiag.asm	/^C030:	ANI	0FFH	;SET FLAGS BACK!$/;"	l
 CARRY_OFF	newCpu.h	/^#define CARRY_OFF /;"	d
 CARRY_ON	newCpu.h	/^#define CARRY_ON /;"	d
+CCI	cpudiag.asm	/^CCI:	RNC		;TEST "RNC"$/;"	l
+CMI	cpudiag.asm	/^CMI:	RP		;TEST "RP"$/;"	l
+CNCI	cpudiag.asm	/^CNCI:	RC		;TEST "RC"$/;"	l
+CNZI	cpudiag.asm	/^CNZI:	RZ		;TEST "RZ"$/;"	l
+CPEI	cpudiag.asm	/^CPEI:	RPO		;TEST "RPO"$/;"	l
+CPIE	cpudiag.asm	/^CPIE:	CALL	CPUER$/;"	l
+CPOI	cpudiag.asm	/^CPOI:	RPE		;TEST "RPE"$/;"	l
+CPU	cpudiag.asm	/^CPU:	LXI	SP,STACK	;SET THE STACK POINTER$/;"	l
 CPU_H_	newCpu.h	/^#define CPU_H_$/;"	d
 CY	emulador.h	/^    uint8_t CY:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
+CZI	cpudiag.asm	/^CZI:	RNZ		;TEST "RNZ"$/;"	l
 ConditionFlags	emulador.h	/^struct ConditionFlags$/;"	s
 DE	emulador.h	/^    uint8_t DE;    $/;"	m	struct:Registers	typeref:typename:uint8_t
 DEBUG	emulador.h	/^#define DEBUG /;"	d
@@ -31,13 +51,36 @@ HL	emulador.h	/^    uint8_t HL;    $/;"	m	struct:Registers	typeref:typename:uint
 IMMEDIATE	newCpu.h	/^#define IMMEDIATE /;"	d
 INSTRUCTION_CYCLE	emulador.h	/^#define INSTRUCTION_CYCLE /;"	d
 Input	emulador.h	/^struct Input$/;"	s
+J010	cpudiag.asm	/^J010:	JNC	J020	;TEST "JNC"$/;"	l
+J020	cpudiag.asm	/^J020:	JPE	J030	;TEST "JPE"$/;"	l
+J030	cpudiag.asm	/^J030:	JP	J040	;TEST "JP"$/;"	l
+J040	cpudiag.asm	/^J040:	JNZ	J050	;TEST "JNZ"$/;"	l
+J050	cpudiag.asm	/^J050:	CALL	CPUER$/;"	l
+J060	cpudiag.asm	/^J060:	ADI	6	;A=6,C=0,P=1,S=0,Z=0$/;"	l
+J070	cpudiag.asm	/^J070:	JC	J080	;TEST "JC"$/;"	l
+J080	cpudiag.asm	/^J080:	CALL	CPUER$/;"	l
+J090	cpudiag.asm	/^J090:	ADI	070H	;A=76H,C=0,P=0,S=0,Z=0$/;"	l
+J100	cpudiag.asm	/^J100:	JM	J110	;TEST "JM"$/;"	l
+J110	cpudiag.asm	/^J110:	CALL	CPUER$/;"	l
+J120	cpudiag.asm	/^J120:	ADI	081H	;A=F7H,C=0,P=0,S=1,Z=0$/;"	l
+J130	cpudiag.asm	/^J130:	JZ	J140	;TEST "JZ"$/;"	l
+J140	cpudiag.asm	/^J140:	CALL	CPUER$/;"	l
+J150	cpudiag.asm	/^J150:	ADI	0FEH	;A=F5H,C=1,P=1,S=1,Z=0$/;"	l
+J160	cpudiag.asm	/^J160:	JZ	J170	;TEST "JZ"$/;"	l
+J170	cpudiag.asm	/^J170:	CALL	CPUER$/;"	l
+MOVI	cpudiag.asm	/^MOVI:	MVI	A,077H$/;"	l
+MSG	cpudiag.asm	/^MSG:	PUSH	D	;EXILE D REG.$/;"	l
 Machine	emulador.h	/^struct Machine$/;"	s
+NGCPU	cpudiag.asm	/^NGCPU:	DB	0CH,0DH,0AH,' CPU HAS FAILED!    ERROR EXIT=$'$/;"	d
 NO_COND	newCpu.h	/^#define NO_COND /;"	d
 NO_VALUE	newCpu.h	/^#define NO_VALUE /;"	d
+OKCPU	cpudiag.asm	/^OKCPU:	DB	0CH,0DH,0AH,' CPU IS OPERATIONAL$'$/;"	d
 OP_FUNC_PTR	newCpu.h	/^typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);$/;"	t	typeref:typename:uint16_t (*)(uint8_t,uint8_t,uint8_t)
+ORII	cpudiag.asm	/^ORII:	ORI	03AH	;A=50H<OR>3AH=7AH,C=0,P=0,S=0,Z=0$/;"	l
 Output	emulador.h	/^struct Output$/;"	s
 P	emulador.h	/^    uint8_t P:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
 PC	emulador.h	/^    uint16_t PC;    $/;"	m	struct:Registers	typeref:typename:uint16_t
+PCHAR	cpudiag.asm	/^PCHAR:	MVI	C,2$/;"	l
 PORT_SIZE	newCpu.h	/^#define PORT_SIZE /;"	d
 Port	emulador.h	/^struct Port$/;"	s
 RAM	emulador.h	/^    uint8_t *RAM;$/;"	m	struct:Machine	typeref:typename:uint8_t *
@@ -52,10 +95,15 @@ ROM_MAX	emulador.c	/^#define ROM_MAX /;"	d	file:
 ROM_SIZE	newCpu.h	/^    uint32_t ROM_SIZE;$/;"	m	struct:cpu_s	typeref:typename:uint32_t
 Registers	emulador.h	/^struct Registers$/;"	s
 S	emulador.h	/^    uint8_t S:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
+SBII	cpudiag.asm	/^SBII:	SBI	0F1H	;A=F0H-0F1H-CARRY(0)=FFH,C=1$/;"	l
 SP	emulador.h	/^    uint16_t SP;    $/;"	m	struct:Registers	typeref:typename:uint16_t
 SPRAM	emulador.h	/^    uint8_t *SPRAM;$/;"	m	struct:Machine	typeref:typename:uint8_t *
 SPRAM_SIZE	emulador.h	/^#define SPRAM_SIZE /;"	d
 STACK_SIZE	newCpu.h	/^    uint32_t STACK_SIZE;$/;"	m	struct:cpu_s	typeref:typename:uint32_t
+SUII	cpudiag.asm	/^SUII:	SUI	00CH	;A=FFH,C=0$/;"	l
+TCPI	cpudiag.asm	/^TCPI:	RM		;TEST "RM"$/;"	l
+WBOOT	cpudiag.asm	/^WBOOT	EQU	00000H	;RE-ENTRY TO CP\/M WARM BOOT$/;"	d
+XRII	cpudiag.asm	/^XRII:	XRI	00FH	;A=7AH<XOR>0FH=75H,C=0,P=0,S=0,Z=0$/;"	l
 Z	emulador.h	/^    uint8_t Z:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
 a	newCpu.h	/^    uint8_t a;$/;"	m	struct:cpu_s	typeref:typename:uint8_t
 add	newCpu.c	/^uint16_t add(uint8_t r1, uint8_t r2, uint8_t flag)$/;"	f	typeref:typename:uint16_t
@@ -142,7 +190,7 @@ init_reg	emulador.c	/^reg* init_reg()$/;"	f	typeref:typename:reg *
 initdisplay	hardware.c	/^int initdisplay(SDL_Window **window, SDL_Renderer **rend)$/;"	f	typeref:typename:int
 input	emulador.c	/^void input(state8080 *state, port *p)$/;"	f	typeref:typename:void
 input	emulador.h	/^    i_port *input;$/;"	m	struct:Port	typeref:typename:i_port *
-inst_process	newCpu.c	/^int inst_process(cpu *cpu, int opcode)$/;"	f	typeref:typename:int
+inst_process	newCpu.c	/^int inst_process(cpu *cpu)$/;"	f	typeref:typename:int
 instruction_cycle	newCpu.c	/^const uint8_t instruction_cycle[] = {$/;"	v	typeref:typename:const uint8_t[]
 inter_ind	emulador.h	/^    uint8_t inter_ind:1;$/;"	m	struct:Machine	typeref:typename:uint8_t:1
 inter_opcode	emulador.h	/^    uint8_t inter_opcode;$/;"	m	struct:Machine	typeref:typename:uint8_t

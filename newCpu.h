@@ -172,7 +172,7 @@ void     call        (cpu *cpu, uint8_t cond)                         ;
 void     ret         (cpu *cpu, uint8_t cond)                          ;
 void     rst_n       (cpu *cpu, uint8_t opcode)                      ;
 void     jump_hl     (cpu *cpu)                                    ;
-int      inst_process(cpu *cpu, int opcode)                    ;
+int      inst_process(cpu *cpu)                    ;
 
 //io
 void     port_input(cpu *cpu)                                 ;
