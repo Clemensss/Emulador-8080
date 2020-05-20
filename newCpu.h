@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define CARRY_OFF 0 
-#define CARRY_ON  1 
+#define CARRY_ON cpu->flags->c
 #define PORT_SIZE  100 
 
 #define NO_VALUE 0
@@ -69,11 +69,9 @@ struct cpu_s
     
     uint32_t ROM_SIZE;
     uint32_t RAM_SIZE;
-    uint32_t STACK_SIZE;
 
     uint8_t *ram;
     uint8_t *rom;
-    uint8_t *stack;
     uint8_t *ports;
 
     uint8_t halt:1;
@@ -86,9 +84,9 @@ typedef struct cpu_s cpu;
 
 //util
 flags*   init_flags       ();
-void     load_rom         (char *file_name, uint8_t *buffer, uint32_t *file_size)  ;
+void     load_rom         (char *file_name, uint8_t **buffer, uint32_t *file_size)  ;
 void     memset_zero      (uint8_t *arr, uint32_t arr_size)                     ;
-cpu*     init_cpu         (char *file_name, uint32_t stack_size, uint32_t ram_size);
+cpu*     init_cpu         (char *file_name, uint32_t ram_size);
 uint16_t join             (uint8_t rh, uint8_t rl)              ;
 uint16_t join_hl          (cpu *cpu)                         ;
 uint8_t  get_rh           (uint16_t bytes)                     ;
@@ -96,8 +94,6 @@ uint8_t  get_rl           (uint16_t bytes)                     ;
 uint16_t mem_out          (cpu *cpu, uint16_t addr)          ;
 void     mem_in           (cpu *cpu, uint16_t addr, uint8_t val)  ;
 uint16_t mem_check        (uint32_t bound, uint16_t addr,  char *memname, uint16_t pc);
-void     stack_in         (cpu *cpu, uint16_t addr, uint8_t val);
-uint8_t  stack_out        (cpu *cpu, uint16_t addr)         ;
 uint8_t  get_psw          (cpu *cpu)                          ;
 void     set_psw          (cpu *cpu, uint8_t psw)                ;
 void     swap             (uint8_t *r1, uint8_t *r2)                ;
@@ -178,8 +174,11 @@ int      inst_process(cpu *cpu)                    ;
 void     port_input(cpu *cpu)                                 ;
 void     port_output(cpu *cpu)                                ;
 
+//debug
+void debug_emu(uint8_t opcode);
+void cpu_diag_call(cpu *cpu);
+void print_state(cpu *cpu);
 
-void debug_emu(cpu *cpu, uint8_t opcode);
 void     assert(char *fun, uint32_t result, uint32_t equal_to);
 void     tests(void)                                          ;
 

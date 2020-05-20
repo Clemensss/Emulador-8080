@@ -43,7 +43,7 @@ flags* init_flags()
 /*
  * Reads the rom into a uint8_t arr buffer
  */
-void load_rom(char *file_name, uint8_t *buffer, uint32_t *file_size)
+void load_rom(char *file_name, uint8_t **memory, uint32_t *file_size)
 {
     FILE *fp;
 
@@ -52,8 +52,8 @@ void load_rom(char *file_name, uint8_t *buffer, uint32_t *file_size)
     *file_size = ftell(fp);             // Get the current byte offset in the file
     rewind(fp);                      // Jump back to the beginning of the file
 
-    buffer = (uint8_t *)malloc((*file_size)*sizeof(uint8_t)); 
-    fread(buffer, *file_size, 1, fp); // Read in the entire file
+    *memory = (uint8_t *)malloc((*file_size)*sizeof(uint8_t)); 
+    fread(*memory, *file_size, 1, fp); // Read in the entire file
     fclose(fp); 
 }
 
@@ -66,7 +66,7 @@ void memset_zero(uint8_t *arr, uint32_t arr_size)
  * Initializes a cpu_s struct and loads a rom into memory with a defined
  * stack and ram size 
  */
-cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
+cpu* init_cpu(char *file_name, uint32_t ram_size)
 {
     struct cpu_s* cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
     
@@ -85,18 +85,15 @@ cpu* init_cpu(char *file_name, uint32_t stack_size, uint32_t ram_size)
     cpu->intr_opcode = 0;
     cpu->intr_enable = 0;
 
-    cpu->STACK_SIZE = stack_size;
     cpu->RAM_SIZE = ram_size;
 
     cpu->flags = init_flags();
 
-    load_rom(file_name, cpu->rom, &cpu->ROM_SIZE);
+    load_rom(file_name, &cpu->rom, &cpu->ROM_SIZE);
 
     cpu->ram   = (uint8_t*)malloc(sizeof(uint8_t)*cpu->RAM_SIZE);
-    cpu->stack = (uint8_t*)malloc(sizeof(uint8_t)*cpu->STACK_SIZE);
     cpu->ports = (uint8_t*)malloc(sizeof(uint8_t)*PORT_SIZE);
     
-    memset_zero(cpu->stack, cpu->STACK_SIZE);
     memset_zero(cpu->ram, cpu->RAM_SIZE);
     memset_zero(cpu->ports, PORT_SIZE);
 
@@ -142,51 +139,36 @@ uint8_t get_rl(uint16_t bytes)
 uint16_t mem_out(cpu *cpu, uint16_t addr)
 {
     uint16_t virtual_addr;
+    if(addr < cpu->ROM_SIZE) return cpu->rom[addr];
 
-    if(addr <= cpu->ROM_SIZE) 
-	return cpu->rom[addr];
-
-    else if(addr <= (cpu->STACK_SIZE + cpu->ROM_SIZE)) 
-	return stack_out(cpu, addr);
-
-    else if(addr < (cpu->ROM_SIZE + cpu->STACK_SIZE +  cpu->RAM_SIZE))
-    {
-	virtual_addr = addr - (cpu->STACK_SIZE + cpu->RAM_SIZE);
-	return cpu->ram[virtual_addr];
-    }
-
-    else
-    {
-	printf("ERROR Address %#04x out of bound PC = %d\n", cpu->pc);
-	exit(1);
-    }
-}
-
-void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
-{
-    
-    uint16_t virtual_addr;
-
-    if(addr <= cpu->ROM_SIZE) 
-    {
-	printf("ERROR Address %#04x trying to write to rom\nPC = %d\n", cpu->pc);
-	exit(1);
-    }
-
-    else if(addr <= (cpu->STACK_SIZE + cpu->ROM_SIZE))
-	stack_in(cpu, addr, val);
-
-    else if(addr < (cpu->ROM_SIZE + cpu->STACK_SIZE +  cpu->RAM_SIZE))
-    {
-	virtual_addr = addr - (cpu->STACK_SIZE + cpu->RAM_SIZE);
-	cpu->ram[virtual_addr] = val;
-    }
-
-    else
+    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
     {
 	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
 	exit(1);
     }
+
+    virtual_addr = addr - cpu->ROM_SIZE;
+    return cpu->ram[virtual_addr];
+}
+
+void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
+{
+    uint16_t virtual_addr;
+
+    if(addr <= cpu->ROM_SIZE) 
+    {
+	printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
+	exit(1);
+    }
+
+    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
+    {
+	printf("ERROR Address %#04x; Out of bound; PC = %#04x\n", addr, cpu->pc);
+	exit(1);
+    }
+
+    virtual_addr = addr - cpu->ROM_SIZE;
+    cpu->ram[virtual_addr] = val;
 
 }
 
@@ -201,7 +183,7 @@ uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
 
 /*
  * Controls virtualization of the stack 
- */
+ *
 void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
 {
     uint16_t virtual_addr;
@@ -230,6 +212,7 @@ uint8_t stack_out(cpu *cpu, uint16_t addr)
 
     return cpu->stack[virtual_addr];
 }
+*/
 
 uint8_t get_psw(cpu *cpu)
 {
@@ -298,7 +281,7 @@ void set_flag_p(cpu *cpu, uint8_t result)
 
 void set_flag_z(cpu *cpu, uint8_t result)
 {
-    cpu->flags->z = !!result;
+    cpu->flags->z = !!!result;
 }
 
 void set_flags_all(cpu *cpu, uint16_t result)
@@ -373,7 +356,7 @@ void store_byte_hl(cpu *cpu)
 //LXI rp, data 16
 void load_rp_data(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
-    get_next_pc_bytes(cpu, rh, rl);
+    get_next_pc_bytes(cpu, rl, rh);
 }
 
 void load_sp_rp(cpu *cpu)
@@ -644,15 +627,17 @@ void tests(void)
 //PUSH rp
 void push(cpu *cpu, uint8_t rh, uint8_t rl)
 {
-    cpu->stack[--cpu->sp] = rh;
-    cpu->stack[--cpu->sp] = rl;
+    cpu->ram[cpu->sp-1] = rh;
+    cpu->ram[cpu->sp-2] = rl;
+    
 }
 
 //POP rp
 void pop(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
-    *rl = stack_out(cpu, cpu->sp++);
-    *rh = stack_out(cpu, cpu->sp++);
+    *rl = mem_out(cpu, cpu->sp);
+    *rh = mem_out(cpu, cpu->sp+1);
+    cpu->sp += 2;
 }
 //POP PSW
 void pop_psw(cpu *cpu)
@@ -674,12 +659,12 @@ void ex_hl_sp(cpu *cpu)
     uint8_t tmp;
 
     tmp = cpu->l;
-    cpu->l = stack_out(cpu, cpu->sp);
-    stack_in(cpu, cpu->sp, tmp);
+    cpu->l = mem_out(cpu, cpu->sp);
+    mem_in(cpu, cpu->sp, tmp);
     
     tmp = cpu->h;
-    cpu->h = stack_out(cpu, cpu->sp+1);
-    stack_in(cpu, cpu->sp+1, tmp);
+    cpu->h = mem_out(cpu, cpu->sp+1);
+    mem_in(cpu, cpu->sp+1, tmp);
 }
 
 //SPHL
@@ -717,7 +702,7 @@ void jump(cpu *cpu, uint8_t cond)
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
     uint16_t addr = join(byte3, byte2);
 
-    if(cond) {cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);}
+    if(cond) {cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);cpu->pc--;}
 }
 
 //CALL addr
@@ -774,13 +759,26 @@ void decimal_adj_acc(cpu *cpu)
  */
 int inst_process(cpu *cpu)
 {
-    uint8_t opcode = mem_out(cpu, cpu-pc);
+    uint8_t opcode = mem_out(cpu, cpu->pc);
 
     if(cpu->intr && cpu->intr_enable) 
     {
 	opcode = cpu->intr_opcode;
 	cpu->intr = 0;
     }
+
+#ifdef DEBUG
+
+    printf("\x1b[33m");
+    printf("%#04x ", cpu->pc);
+    printf("\x1b[0m"); 
+
+    printf("%#04x ", opcode);
+#ifdef STATE
+    print_state(cpu);
+#endif
+    debug_emu(opcode);
+#endif
 
     switch(opcode)
     {
@@ -807,7 +805,7 @@ int inst_process(cpu *cpu)
 	case 0x32: store_a_addr(cpu); break;    //    STA adr
 
 	case 0x01: load_rp_data(cpu, &cpu->b, &cpu->c); break; //    LXI B,D16	
-	case 0x11: load_rp_data(cpu, &cpu->d, &cpu->e); break; //    LXI C,D16	
+	case 0x11: load_rp_data(cpu, &cpu->d, &cpu->e); break; //    LXI D,D16	
 	case 0x21: load_rp_data(cpu, &cpu->h, &cpu->l); break; //    LXI H,D16	
 	case 0x31: load_sp_rp(cpu);                     break; //    LXI SP,D16	
 
@@ -975,14 +973,15 @@ int inst_process(cpu *cpu)
 	case 0x9f: cpu->a = alu_inst(cpu, REGISTER, sub, cpu->a, CARRY_ON, ALL_FLAGS); break; //    SBB A	
 
 	case 0xc6: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ADI D8	
-	case 0xce: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //    ACI D8	
 	case 0xd6: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    SUI D8	
+
+	case 0xce: cpu->a = alu_inst(cpu, IMMEDIATE, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //    ACI D8	
 	case 0xde: cpu->a = alu_inst(cpu, IMMEDIATE, sub, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //    SBI D8	
 
-	case 0xe6: cpu->a = alu_inst(cpu, IMMEDIATE, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ANI D8	
-	case 0xee: cpu->a = alu_inst(cpu, IMMEDIATE, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    XRI D8	    
-	case 0xf6: cpu->a = alu_inst(cpu, IMMEDIATE, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    ORI D8	    
-	case 0xfe: cpu->a = alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    CPI D8	    
+	case 0xe6: cpu->a = alu_inst(cpu, IMMEDIATE, and, NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    ANI D8	
+	case 0xee: cpu->a = alu_inst(cpu, IMMEDIATE, xor, NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRI D8	    
+	case 0xf6: cpu->a = alu_inst(cpu, IMMEDIATE, or,  NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    ORI D8	    
+	case 0xfe: alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    CPI D8	    
 
 	case 0x8e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ADC M	
 	case 0x86: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   ADD M	
@@ -991,7 +990,7 @@ int inst_process(cpu *cpu)
 	case 0xa6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ANA M	
 	case 0xae: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   XRA M	
 	case 0xb6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ORA M	
-	case 0xbe: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
+	case 0xbe: alu_inst(cpu, REGISTER_INDIRECT, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
 	
 	case 0xa0: cpu->a = alu_inst(cpu, REGISTER, and, cpu->b, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA B
 	case 0xa1: cpu->a = alu_inst(cpu, REGISTER, and, cpu->c, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA C
@@ -1041,7 +1040,13 @@ int inst_process(cpu *cpu)
 	case 0xe9: jump_hl(cpu); break; //    PCHL	
 
 	case 0xc3: jump(cpu, NO_COND); break; //    JMP adr	
+
+#ifndef CPUDIAG
 	case 0xcd: call(cpu, NO_COND); break; //    CALL adr
+#else
+	case 0xcd: cpu_diag_call(cpu); break; 
+#endif
+
 	case 0xc9: ret(cpu,  NO_COND); break; //    RET	
 
 	case 0xc2: jump(cpu, !cpu->flags->z); break; //    JNZ adr	
@@ -1089,6 +1094,7 @@ int inst_process(cpu *cpu)
 	case 0xdb: port_input(cpu);  break; //    IN D8	
 
 	//========= NOP =======
+	case 0x00: break; //    -
 	case 0x08: break; //    -
 	case 0x10: break; //    -	
 	case 0x18: break; //    -	
@@ -1104,14 +1110,17 @@ int inst_process(cpu *cpu)
 
 	default: printf("%#04x not found\n", opcode);
     }
-
+    
+    //increase pc
+    cpu->pc++;
     //return instruction cycle 
     return instruction_cycle[opcode];
 }
 
 //debungging function 
-void debug_emu(cpu *cpu, uint8_t opcode)
+void debug_emu(uint8_t opcode)
 {
+    printf("\x1b[032m"); //Set the text to the color red.
     switch(opcode)
     {
 	case 0x00: printf("NOP	\n"); break;
@@ -1371,9 +1380,49 @@ void debug_emu(cpu *cpu, uint8_t opcode)
 	case 0xfe: printf("CPI D8       \n"); break;
 	case 0xff: printf("RST 7        \n"); break;  
     }
+    printf("\x1b[0m"); 
 }
 
+void print_state(cpu *cpu)
+{
+    printf("\na %#04x ",cpu->a);
+    printf("b %#04x ",cpu->b);
+    printf("c %#04x ",cpu->c);
+    printf("d %#04x ",cpu->d);
+    printf("e %#04x ",cpu->e);
+    printf("h %#04x ",cpu->h);
+    printf("l %#04x ",cpu->l);
+    printf("sp %#04x\n",cpu->sp);
 
+    printf("z: %d ", cpu->flags->z); 
+    printf("p: %d ", cpu->flags->p);
+    printf("s: %d ", cpu->flags->s);
+    printf("c: %d\n", cpu->flags->c); 
+}
+
+#define CPUER 0x589
+void cpu_diag_call(cpu *cpu)
+{
+    uint8_t byte_low, byte_high;
+    get_next_pc_bytes(cpu, &byte_low, &byte_high);
+    
+    if(CPUER == join(byte_high, byte_low)) printf("-- BREAKPOINT --\n\n");
+    if(5 ==  join(byte_high, byte_low))    
+    {    
+	if (cpu->c == 9)    
+	{    
+	    uint16_t offset = join(cpu->d, cpu->e) + 4;
+	    char *c = &cpu->rom[offset];
+	    while (*c != '$')    
+		printf("%c", *c++);    
+            printf("\n");     
+	    exit(0);
+	}    
+	else if (cpu->c == 2) printf("print char routine called\n");    
+    }    
+    else if (0 ==  (join(byte_high, byte_low))) exit(0);    
+    else {--cpu->pc; --cpu->pc; call(cpu, NO_COND);}
+}
 
 
 
