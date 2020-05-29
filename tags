@@ -112,6 +112,8 @@ SPRAM_SIZE	emulador.h	/^#define SPRAM_SIZE /;"	d
 SUB	newCpu.h	/^#define SUB(/;"	d
 SUII	cpudiag.asm	/^SUII:	SUI	00CH	;A=FFH,C=0$/;"	l
 TCPI	cpudiag.asm	/^TCPI:	RM		;TEST "RM"$/;"	l
+TIME_INST_BURST	main.c	/^#define TIME_INST_BURST /;"	d	file:
+TIME_SCREEN_INTR	main.c	/^#define TIME_SCREEN_INTR /;"	d	file:
 WBOOT	cpudiag.asm	/^WBOOT	EQU	00000H	;RE-ENTRY TO CP\/M WARM BOOT$/;"	d
 XRII	cpudiag.asm	/^XRII:	XRI	00FH	;A=7AH<XOR>0FH=75H,C=0,P=0,S=0,Z=0$/;"	l
 Z	emulador.h	/^    uint8_t Z:1;$/;"	m	struct:ConditionFlags	typeref:typename:uint8_t:1
@@ -229,6 +231,7 @@ jump	newCpu.c	/^void jump(cpu *cpu, uint8_t cond)$/;"	f	typeref:typename:void
 jump_HL_dir	emulador.c	/^void jump_HL_dir(state8080 *state)$/;"	f	typeref:typename:void
 jump_hl	newCpu.c	/^void jump_hl(cpu *cpu)$/;"	f	typeref:typename:void
 key_input	hardware.c	/^void key_input(SDL_Event event, state8080 *state, port *p)$/;"	f	typeref:typename:void
+key_input	main.c	/^void key_input(cpu *cpu, SDL_Event event)$/;"	f	typeref:typename:void
 l	newCpu.h	/^    uint8_t l;     $/;"	m	struct:cpu_t	typeref:typename:uint8_t
 load_HL_dir	emulador.c	/^void load_HL_dir(state8080 *state)$/;"	f	typeref:typename:void
 load_a_addr	newCpu.c	/^void load_a_addr(cpu *cpu)$/;"	f	typeref:typename:void
@@ -328,7 +331,6 @@ set_flags_all	newCpu.c	/^void set_flags_all(cpu *cpu, uint16_t result)$/;"	f	typ
 set_psw	newCpu.c	/^void set_psw(cpu *cpu, uint8_t psw)$/;"	f	typeref:typename:void
 set_reset_flags	newCpu.c	/^void set_reset_flags(cpu *cpu, uint16_t result, const uint8_t *arr_flag)$/;"	f	typeref:typename:void
 sp	newCpu.h	/^    uint16_t sp;$/;"	m	struct:cpu_t	typeref:typename:uint16_t
-space_invaders_intr	main.c	/^int space_invaders_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)$/;"	f	typeref:typename:int
 state	Makefile	/^state:$/;"	t
 state8080	emulador.h	/^typedef struct Machine state8080;$/;"	t	typeref:struct:Machine
 status_flags	emulador.h	/^    flags *status_flags;$/;"	m	struct:Machine	typeref:typename:flags *
@@ -353,6 +355,7 @@ swap	newCpu.c	/^void swap(uint8_t *r1, uint8_t *r2)$/;"	f	typeref:typename:void
 swap_hl_de	newCpu.c	/^void swap_hl_de(cpu *cpu)$/;"	f	typeref:typename:void
 tests	emulador.c	/^void tests()$/;"	f	typeref:typename:void
 tests	newCpu.c	/^void tests(void)$/;"	f	typeref:typename:void
+timer_intr	main.c	/^int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)$/;"	f	typeref:typename:int
 twoscomp	emulador.c	/^uint8_t twoscomp(uint8_t num)$/;"	f	typeref:typename:uint8_t
 user_input	hardware.c	/^void user_input(uint8_t *port) $/;"	f	typeref:typename:void
 window	screen.h	/^    SDL_Window *window;   $/;"	m	struct:screen_t	typeref:typename:SDL_Window *

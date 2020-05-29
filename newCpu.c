@@ -793,13 +793,11 @@ int inst_process(cpu *cpu)
     }
 
 #ifdef DEBUG
-
     printf("\x1b[33m");
     printf("%#04x ", cpu->pc);
     printf("\x1b[0m"); 
 
     printf("%#04x ", opcode);
-    //printf("TEMP0: %#04x", cpu->rom[0x5a6]);
     debug_emu(opcode);
 #endif
 

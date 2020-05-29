@@ -1,15 +1,21 @@
 #include <stdio.h> 
+#include <stdbool.h>
+
 #include "screen.h"
 #define DEB printf("Working\n")
 
 #define MID_SCREEN_ADDR 
 #define END_SCREEN_ADDR
+
+#define TIME_SCREEN_INTR 8
+#define TIME_INST_BURST  1
 #define MAX_CYCLES 10000
 
 void emulator_loop(cpu *cpu, struct screen_t *screen);
 int cpu_loop(cpu *cpu, int max_cycles);
 void display_intr(cpu *cpu, struct screen_t *screen, uint8_t *toggle);
-int space_invaders_intr(int *milisec, int trigger, clock_t *before, clock_t *diff);
+int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff);
+void key_input(cpu *cpu, SDL_Event event);
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +31,8 @@ int main(int argc, char *argv[])
 
     emulator_loop(cpu, screen);
 
-    //stop_sdl(&window, &rend);
+    free(cpu);
+    free(screen);
 
     return 0;
 }
@@ -33,52 +40,50 @@ int main(int argc, char *argv[])
 void emulator_loop(cpu *cpu, struct screen_t *screen)
 {
     SDL_Event event;
-    int    milisec = 0, 
-	   trigger = 8; 
     uint8_t toggle = 1;
-    clock_t before = clock();
-    clock_t diff;
-   
-    int max_total_cycles = 0;
 
-    while(!cpu->halt)
+    int screen_milisec = 0,
+        inst_milisec   = 0;
+
+    clock_t screen_before = clock(),
+	    inst_before   = clock();
+
+    clock_t screen_diff,
+	    inst_diff;
+   
+    uint8_t burst = 1;
+
+    while(true)
     {
 	//MAKE THIS WORK
 	/*Basically it should burst a couple of insts 
 	  for each while loop and when it reaches a 
 	  max it simply stops*/
 
-	if(max_total_cycles < MAX_CYCLES)
-	    max_total_cycles += cpu_loop(cpu, 16666);
+	if(burst)
+	{
+	     cpu_loop(cpu, 10000);
+	     burst = 0;
+	}
 
-
-	//why is this here?
 	if(cpu->halt) break;
 
 #ifndef CPUDIAG
 
 	//MAKE THIS WORK
-	if(space_invaders_intr(&milisec, trigger, &before, &diff))
-	{
+	if(timer_intr(&inst_milisec, TIME_INST_BURST, &inst_before, &inst_diff))
+	    burst = 1;
+
+	if(timer_intr(&screen_milisec, TIME_SCREEN_INTR, &screen_before, &screen_diff))
 	    display_intr(cpu, screen, &toggle);
-	    max_total_cycles = 0;
-	}
 	
-	//FIGURE WHAT THE FUCK IS GOING ON HERE
-	/*if(SDL_PollEvent(&event)) 
-	{
-	    key_input(event, state, p);
-	}
-	else
-	{
-	    //p = init_port();
-	}*/
+	key_input(cpu, event);
 #endif
 
     }
 }
 
-int space_invaders_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)
+int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)
 {
     if(*milisec > trigger)
     {
@@ -94,17 +99,13 @@ int space_invaders_intr(int *milisec, int trigger, clock_t *before, clock_t *dif
 
 void display_intr(cpu *cpu, struct screen_t *screen, uint8_t *toggle)
 {
-    if(*toggle)
-    {
-	draw_space(mem_ptr_out(cpu, 9216), screen, 0, 128);
-	generate_intr(cpu, 0xcf);
-	printf("DEBUG1\n");
-    }
-    else
-    {
-	draw_space(mem_ptr_out(cpu, 13312), screen, 128, 224);
-	generate_intr(cpu, 0xd7);
-    }
+    int addr    = (*toggle) ? 9216 : 13312;
+    int intr    = (*toggle) ? 0xcf :  0xd7;
+    int start_x = (*toggle) ? 0    :   128;
+    int end_x   = (*toggle) ? 128  :   224;
+
+    draw_space(mem_ptr_out(cpu, addr), screen, start_x, end_x);
+    generate_intr(cpu, intr);
 
     *toggle = !(*toggle);
 }
@@ -120,4 +121,41 @@ int cpu_loop(cpu *cpu, int max_cycles)
     return max_cycles;
 }
 
+void key_input(cpu *cpu, SDL_Event event)
+{
+    while(SDL_PollEvent(&event)) 
+    {
+	switch(event.type)
+	{
+	    case SDL_KEYDOWN:
+		switch(event.key.keysym.sym)
+		{
+		    case SDLK_q:
 
+			exit(1);
+			break;
+
+		    case SDLK_p:
+
+			break;
+
+		    case SDLK_c :
+			
+			break;
+
+		    case SDLK_SPACE:
+
+			break;
+
+		    case SDLK_LEFT:
+
+			break;
+
+		    case SDLK_RIGHT:
+
+			break;
+		}
+
+	}
+    }
+}
