@@ -19,6 +19,13 @@
 #define IMMEDIATE 2 
 #define REGISTER_INDIRECT 3
 
+//=== operations ===
+
+#define ADD(X) cpu->a = alu_inst(cpu, REGISTER, add, X, CARRY_OFF, ALL_FLAGS)
+#define ADC(X) cpu->a = alu_inst(cpu, REGISTER, add, X, CARRY_OFF, ALL_FLAGS)
+#define SUB(X) cpu->a = alu_inst(cpu, REGISTER, add, X, CARRY_OFF, ALL_FLAGS)
+#define SBB(X) cpu->a = alu_inst(cpu, REGISTER, add, X, CARRY_OFF, ALL_FLAGS)
+//
 /*
  * Easier to read function pointer for the operations
  * the alu can operate on 
@@ -35,7 +42,7 @@ typedef uint16_t (*OP_FUNC_PTR)(uint8_t, uint8_t, uint8_t);
  *  z = 1 if x == 0 else z = 0
  *  ac not used for space invaders
  */
-struct flags_s 
+struct flags_t 
 {
     uint8_t z:1;
     uint8_t p:1;
@@ -43,7 +50,7 @@ struct flags_s
     uint8_t c:1;
 };
 
-typedef struct flags_s flags;
+typedef struct flags_t flags;
 
 
 /*
@@ -52,7 +59,7 @@ typedef struct flags_s flags;
  *  3 arrays for ROM memory, STACK, and RAM
  *  and the flags struct inside of it
  */
-struct cpu_s
+struct cpu_t
 {
     uint8_t a;
     uint8_t b;   
@@ -65,7 +72,7 @@ struct cpu_s
     uint16_t sp;
     uint16_t pc;    
     
-    struct flags_s *flags;
+    struct flags_t *flags;
     
     uint32_t ROM_SIZE;
     uint32_t RAM_SIZE;
@@ -80,7 +87,7 @@ struct cpu_s
     uint8_t intr_enable:1;
 };
 
-typedef struct cpu_s cpu;
+typedef struct cpu_t cpu;
 
 //util
 flags*   init_flags       ();
@@ -91,7 +98,8 @@ uint16_t join             (uint8_t rh, uint8_t rl)              ;
 uint16_t join_hl          (cpu *cpu)                         ;
 uint8_t  get_rh           (uint16_t bytes)                     ;
 uint8_t  get_rl           (uint16_t bytes)                     ;
-uint16_t mem_out          (cpu *cpu, uint16_t addr)          ;
+uint8_t* mem_ptr_out      (cpu *cpu, uint16_t addr);
+uint8_t  mem_out          (cpu *cpu, uint16_t addr)          ;
 void     mem_in           (cpu *cpu, uint16_t addr, uint8_t val)  ;
 uint16_t mem_check        (uint32_t bound, uint16_t addr,  char *memname, uint16_t pc);
 uint8_t  get_psw          (cpu *cpu)                          ;
@@ -158,7 +166,7 @@ void     rotate_left (cpu *cpu, uint8_t carry)                 ;
 void     rotate_right(cpu *cpu, uint8_t carry)                ;
 
 //branch
-void     push         (cpu *cpu, uint8_t rh, uint8_t rl)               ;
+void     push        (cpu *cpu, uint8_t rh, uint8_t rl)               ;
 void     pop         (cpu *cpu, uint8_t *rh, uint8_t *rl)              ;
 void     pop_psw     (cpu *cpu)                                    ;
 void     ex_hl_sp    (cpu *cpu)                                   ;
@@ -173,6 +181,7 @@ int      inst_process(cpu *cpu)                    ;
 //io
 void     port_input(cpu *cpu)                                 ;
 void     port_output(cpu *cpu)                                ;
+void     generate_intr(cpu *cpu, uint8_t opcode);
 
 //debug
 void debug_emu(uint8_t opcode);

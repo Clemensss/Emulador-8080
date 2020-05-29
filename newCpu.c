@@ -30,7 +30,7 @@ const uint8_t instruction_cycle[] = {
 
 flags* init_flags()
 {
-    struct flags_s* flags = (struct flags_s*)malloc(sizeof(struct flags_s));
+    struct flags_t* flags = (struct flags_t*)malloc(sizeof(struct flags_t));
 
     flags->z = 0;
     flags->p = 0;
@@ -68,7 +68,7 @@ void memset_zero(uint8_t *arr, uint32_t arr_size)
  */
 cpu* init_cpu(char *file_name, uint32_t ram_size)
 {
-    struct cpu_s* cpu = (struct cpu_s*)malloc(sizeof(struct cpu_s));
+    struct cpu_t* cpu = (struct cpu_t*)malloc(sizeof(struct cpu_t));
     
     cpu->a  = 0;
     cpu->b  = 0;
@@ -77,7 +77,7 @@ cpu* init_cpu(char *file_name, uint32_t ram_size)
     cpu->e  = 0;
     cpu->h  = 0;
     cpu->l  = 0;
-    cpu->pc = 0;
+    cpu->pc = 1;
     cpu->sp = 0;
     
     cpu->halt        = 0;
@@ -91,8 +91,8 @@ cpu* init_cpu(char *file_name, uint32_t ram_size)
 
     load_rom(file_name, &cpu->rom, &cpu->ROM_SIZE);
 
-    cpu->ram   = (uint8_t*)malloc(sizeof(uint8_t)*cpu->RAM_SIZE);
-    cpu->ports = (uint8_t*)malloc(sizeof(uint8_t)*PORT_SIZE);
+    cpu->ram   = (uint8_t*)malloc(cpu->RAM_SIZE * sizeof(uint8_t));
+    cpu->ports = (uint8_t*)malloc(PORT_SIZE *     sizeof(uint8_t));
     
     memset_zero(cpu->ram, cpu->RAM_SIZE);
     memset_zero(cpu->ports, PORT_SIZE);
@@ -136,7 +136,22 @@ uint8_t get_rl(uint16_t bytes)
  * nescessary to map the address to an index of the ram arr 
  */
 
-uint16_t mem_out(cpu *cpu, uint16_t addr)
+uint8_t* mem_ptr_out(cpu *cpu, uint16_t addr)
+{
+    uint16_t virtual_addr;
+    if(addr < cpu->ROM_SIZE) return &cpu->rom[addr];
+
+    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
+    {
+	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
+	cpu->halt = 1;
+    }
+
+    virtual_addr = addr - cpu->ROM_SIZE;
+    return &cpu->ram[virtual_addr];
+}
+
+uint8_t mem_out(cpu *cpu, uint16_t addr)
 {
     uint16_t virtual_addr;
     if(addr < cpu->ROM_SIZE) return cpu->rom[addr];
@@ -144,12 +159,13 @@ uint16_t mem_out(cpu *cpu, uint16_t addr)
     else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
     {
 	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
-	exit(1);
+	cpu->halt = 1;
     }
 
     virtual_addr = addr - cpu->ROM_SIZE;
     return cpu->ram[virtual_addr];
 }
+
 
 void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
@@ -157,14 +173,18 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 
     if(addr <= cpu->ROM_SIZE) 
     {
+#ifdef FUCKIT
+	cpu->rom[addr] = val;
+#else
 	printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
-	exit(1);
+	cpu->halt = 1;
+#endif
     }
 
     else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
     {
 	printf("ERROR Address %#04x; Out of bound; PC = %#04x\n", addr, cpu->pc);
-	exit(1);
+	cpu->halt = 1;
     }
 
     virtual_addr = addr - cpu->ROM_SIZE;
@@ -178,7 +198,7 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
 {
     if(addr < bound){ return addr; }
-    else{printf("ERROR segmentation fault: %s\nPC = %#04x\n", memname, pc); exit(1);}
+    else{printf("ERROR segmentation fault: %s\nPC = %#04x\n", memname, pc);}
 }
 
 /*
@@ -402,10 +422,10 @@ void store_hl_addr(cpu *cpu)
 
     mem_in(cpu, 
 	    join(byte_h, byte_l),
-            join(cpu->h, cpu->l));
+            cpu->l);
     mem_in(cpu, 
 	    join(byte_h, byte_l) + 1,
-            join(cpu->h, cpu->l));
+            cpu->h);
 }
 
 //LDAX rp
@@ -554,10 +574,10 @@ void decr_rp(uint8_t *rh, uint8_t *rl)
 void add_rp_hl(cpu *cpu, uint8_t rh, uint8_t rl)
 {
     uint32_t result = join(cpu->h, cpu->l) + join(rh, rl);
-    cpu->flags->c = result & 0xffff0000;
+    cpu->flags->c = !!(result & 0xffff0000);
 
-    cpu->h = get_rh(result);
-    cpu->l = get_rl(result);
+    cpu->h = get_rh((uint16_t)result);
+    cpu->l = get_rl((uint16_t)result);
 }
 
 void add_sp_hl(cpu *cpu)
@@ -587,7 +607,8 @@ void decr_sp(cpu *cpu)
 void rotate_byte(cpu *cpu, uint8_t c_set, uint8_t lone_bit, uint8_t shifted)
 {
     uint8_t result = (lone_bit | shifted);    
-    cpu->flags->c = !(0 == c_set);    
+    printf("%d\n", result);
+    cpu->flags->c = !!c_set;    
     cpu->a = result;
 }
 
@@ -627,9 +648,9 @@ void tests(void)
 //PUSH rp
 void push(cpu *cpu, uint8_t rh, uint8_t rl)
 {
-    cpu->ram[cpu->sp-1] = rh;
-    cpu->ram[cpu->sp-2] = rl;
-    
+    mem_in(cpu, cpu->sp-1, rh);
+    mem_in(cpu, cpu->sp-2, rl);
+    cpu->sp -= 2;
 }
 
 //POP rp
@@ -709,7 +730,7 @@ void jump(cpu *cpu, uint8_t cond)
 void call(cpu *cpu, uint8_t cond)
 {
     uint8_t pch, pcl;
-    push(cpu, get_rh(cpu->pc+3), get_rl(cpu->pc+3));
+    push(cpu, get_rh(cpu->pc+2), get_rl(cpu->pc+2));
     jump(cpu, cond);
 }
 
@@ -748,7 +769,11 @@ void decimal_adj_acc(cpu *cpu)
     //}
 }
 
-
+void generate_intr(cpu *cpu, uint8_t opcode)
+{
+    cpu->intr = 1;
+    cpu->intr_opcode = opcode;
+}
 
 
 // ================ emulation ==================
@@ -774,9 +799,7 @@ int inst_process(cpu *cpu)
     printf("\x1b[0m"); 
 
     printf("%#04x ", opcode);
-#ifdef STATE
-    print_state(cpu);
-#endif
+    //printf("TEMP0: %#04x", cpu->rom[0x5a6]);
     debug_emu(opcode);
 #endif
 
@@ -811,8 +834,8 @@ int inst_process(cpu *cpu)
 
 	case 0x02: store_a_rp(cpu, cpu->b, cpu->c); break; //    STAX B	
 	case 0x12: store_a_rp(cpu, cpu->d, cpu->e); break; //    STAX D	
-	case 0x0a: store_a_rp(cpu, cpu->b, cpu->c); break; //    LDAX B	
-	case 0x1a: store_a_rp(cpu, cpu->d, cpu->e); break; //    LDAX D	
+	case 0x0a: load_a_rp(cpu, cpu->b, cpu->c); break; //    LDAX B	
+	case 0x1a: load_a_rp(cpu, cpu->d, cpu->e); break; //    LDAX D	
 
 	case 0x06: load_word(cpu, &cpu->b); break; //    MVI B, D8	
 	case 0x0e: load_word(cpu, &cpu->c); break; //    MVI C, D8	
@@ -898,11 +921,14 @@ int inst_process(cpu *cpu)
 	// ======== arithmetic =======
 	
 	case 0x09: add_rp_hl(cpu, cpu->b, cpu->c); break; //    DAD B	
+	case 0x19: add_rp_hl(cpu, cpu->d, cpu->e); break; //    DAD D	
+	case 0x29: add_rp_hl(cpu, cpu->h, cpu->l); break; //    DAD H	
+	case 0x39: add_sp_hl(cpu) ; break; //    DAD SP	
 
-	case 0x17: rotate_left (cpu, CARRY_OFF); break; //    RAL
-	case 0x1f: rotate_right(cpu, CARRY_OFF); break; //   RAR
-	case 0x07: rotate_left (cpu, CARRY_ON);  break; //    RLC
-	case 0x0f: rotate_right(cpu, CARRY_ON);  break; //   RRC
+	case 0x17: rotate_left (cpu, 1); break; //    RAL
+	case 0x1f: rotate_right(cpu, 1); break; //   RAR
+	case 0x07: rotate_left (cpu, CARRY_OFF);  break; //    RLC
+	case 0x0f: rotate_right(cpu, CARRY_OFF);  break; //   RRC
 
 	case 0x03: incr_rp(&cpu->b, &cpu->c); break; //    INX B	
 	case 0x13: incr_rp(&cpu->d, &cpu->e); break; //    INX D	
@@ -928,7 +954,6 @@ int inst_process(cpu *cpu)
 	case 0x2d: cpu->l = alu_inst(cpu, REGISTER, decr, cpu->l, CARRY_OFF, ALL_BUT_CY); break; //    DCR L	
 	case 0x3d: cpu->a = alu_inst(cpu, REGISTER, decr, cpu->a, CARRY_OFF, ALL_BUT_CY); break; //    DCR A	
 
-	case 0x39: add_sp_hl(cpu) ; break; //    DAD SP	
 	case 0x3b: decr_sp(cpu)   ; break; //    DCX SP	
 	case 0x33: incr_sp(cpu)   ; break; //    INX SP	
 
@@ -937,8 +962,6 @@ int inst_process(cpu *cpu)
 
 	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); break; //    DAA	
 
-	case 0x19: add_rp_hl(cpu, cpu->d, cpu->e); break; //    DAD D	
-	case 0x29: add_rp_hl(cpu, cpu->h, cpu->l); break; //    DAD H	
 
 	case 0x80: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ADD B	
 	case 0x81: cpu->a = alu_inst(cpu, REGISTER, add, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    ADD C	
@@ -981,16 +1004,17 @@ int inst_process(cpu *cpu)
 	case 0xe6: cpu->a = alu_inst(cpu, IMMEDIATE, and, NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    ANI D8	
 	case 0xee: cpu->a = alu_inst(cpu, IMMEDIATE, xor, NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    XRI D8	    
 	case 0xf6: cpu->a = alu_inst(cpu, IMMEDIATE, or,  NO_VALUE, CARRY_OFF, ALL_CY_AC_CLEARED); break; //    ORI D8	    
-	case 0xfe: alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    CPI D8	    
+	case 0xfe:          alu_inst(cpu, IMMEDIATE, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //    CPI D8	    
 
-	case 0x8e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ADC M	
-	case 0x86: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   ADD M	
+	case 0x86: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ADD M	
+	case 0x8e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, add, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   ADC M	
 	case 0x96: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, sub, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   SUB M	
 	case 0x9e: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, sub, NO_VALUE, CARRY_ON,  ALL_FLAGS); break; //   SBB M	
+
 	case 0xa6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, and, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ANA M	
 	case 0xae: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, xor, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   XRA M	
 	case 0xb6: cpu->a = alu_inst(cpu, REGISTER_INDIRECT, or,  NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   ORA M	
-	case 0xbe: alu_inst(cpu, REGISTER_INDIRECT, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
+	case 0xbe:          alu_inst(cpu, REGISTER_INDIRECT, cmp, NO_VALUE, CARRY_OFF, ALL_FLAGS); break; //   CMP M	
 	
 	case 0xa0: cpu->a = alu_inst(cpu, REGISTER, and, cpu->b, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA B
 	case 0xa1: cpu->a = alu_inst(cpu, REGISTER, and, cpu->c, CARRY_OFF, ALL_CY_CLEARED); break; //    ANA C
@@ -1110,7 +1134,12 @@ int inst_process(cpu *cpu)
 
 	default: printf("%#04x not found\n", opcode);
     }
-    
+
+#ifdef STATE
+    printf("\n");
+    print_state(cpu);
+#endif
+   
     //increase pc
     cpu->pc++;
     //return instruction cycle 
@@ -1385,7 +1414,7 @@ void debug_emu(uint8_t opcode)
 
 void print_state(cpu *cpu)
 {
-    printf("\na %#04x ",cpu->a);
+    /*printf("\na %#04x ",cpu->a);
     printf("b %#04x ",cpu->b);
     printf("c %#04x ",cpu->c);
     printf("d %#04x ",cpu->d);
@@ -1397,7 +1426,24 @@ void print_state(cpu *cpu)
     printf("z: %d ", cpu->flags->z); 
     printf("p: %d ", cpu->flags->p);
     printf("s: %d ", cpu->flags->s);
-    printf("c: %d\n", cpu->flags->c); 
+    printf("c: %d\n", cpu->flags->c);*/
+    
+    printf("A    B    C    D    E    H    L     SP\n");
+    printf("%#04x"   ,cpu->a);
+    printf(" %#04x"  ,cpu->b);
+    printf(" %#04x"  ,cpu->c);
+    printf(" %#04x"  ,cpu->d);
+    printf(" %#04x"  ,cpu->e);
+    printf(" %#04x"  ,cpu->h);
+    printf(" %#04x"  ,cpu->l);
+    printf(" %#04x\n",cpu->sp);
+
+    printf("flags:\n");
+    printf("\tZ: %s\n", cpu->flags->z ? "true":"false");
+    printf("\tP: %s\n", cpu->flags->p ? "true":"false");
+    printf("\tS: %s\n", cpu->flags->s ? "true":"false");
+    printf("\tCY: %s\n",cpu->flags->c ? "true":"false");   
+
 }
 
 #define CPUER 0x589
