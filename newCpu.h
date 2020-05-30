@@ -61,6 +61,7 @@ typedef struct flags_t flags;
  */
 struct cpu_t
 {
+    //registers
     uint8_t a;
     uint8_t b;   
     uint8_t c;   
@@ -73,18 +74,21 @@ struct cpu_t
     uint16_t pc;    
     
     struct flags_t *flags;
-    
+   
+    //memory 
     uint32_t ROM_SIZE;
     uint32_t RAM_SIZE;
 
     uint8_t *ram;
     uint8_t *rom;
-    uint8_t *ports;
 
+    //interrupt and io
     uint8_t halt:1;
     uint8_t intr:1;
     uint8_t intr_opcode;
     uint8_t intr_enable:1;
+
+    uint8_t *ports;
 };
 
 typedef struct cpu_t cpu;
@@ -101,8 +105,8 @@ uint8_t  get_rl           (uint16_t bytes)                     ;
 uint8_t* mem_ptr_out      (cpu *cpu, uint16_t addr);
 uint8_t  mem_out          (cpu *cpu, uint16_t addr)          ;
 void     mem_in           (cpu *cpu, uint16_t addr, uint8_t val)  ;
-uint16_t mem_check        (uint32_t bound, uint16_t addr,  char *memname, uint16_t pc);
-uint8_t  get_psw          (cpu *cpu)                          ;
+uint8_t  fetch_inst       (cpu *cpu, uint16_t addr);
+uint8_t  get_psw          (cpu *cpu);
 void     set_psw          (cpu *cpu, uint8_t psw)                ;
 void     swap             (uint8_t *r1, uint8_t *r2)                ;
 int      is_bit_set       (uint8_t byte, uint8_t bit)          ;

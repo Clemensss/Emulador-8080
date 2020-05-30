@@ -28,6 +28,7 @@ const uint8_t instruction_cycle[] = {
 	11, 10, 10, 4, 17, 11, 7, 11, 11, 5, 10, 4, 17, 17, 7, 11,
     };
 
+
 flags* init_flags()
 {
     struct flags_t* flags = (struct flags_t*)malloc(sizeof(struct flags_t));
@@ -77,7 +78,7 @@ cpu* init_cpu(char *file_name, uint32_t ram_size)
     cpu->e  = 0;
     cpu->h  = 0;
     cpu->l  = 0;
-    cpu->pc = 1;
+    cpu->pc = 0;
     cpu->sp = 0;
     
     cpu->halt        = 0;
@@ -136,36 +137,40 @@ uint8_t get_rl(uint16_t bytes)
  * nescessary to map the address to an index of the ram arr 
  */
 
+//void mapped_addr()
+uint8_t fetch_inst(cpu *cpu, uint16_t addr)
+{
+    if(addr <= cpu->ROM_SIZE && addr >= 0)
+	return cpu->rom[addr];
+
+    else if(addr > cpu->ROM_SIZE)
+	printf("ERROR Address %#04x out of bound not in ROM \npc = %#04x\n", addr, cpu->pc);
+    else if(addr < 0) 
+	printf("ERROR Address invalid not in ROM\npc = %#04x\n");
+
+    exit(1);
+}
+
 uint8_t* mem_ptr_out(cpu *cpu, uint16_t addr)
 {
-    uint16_t virtual_addr;
-    if(addr < cpu->ROM_SIZE) return &cpu->rom[addr];
+    uint16_t virtual_addr = addr - cpu->ROM_SIZE;
+    
+    if(addr <= cpu->ROM_SIZE && addr >= 0)
+	return &cpu->rom[addr];
 
-    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
-    {
-	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
-	cpu->halt = 1;
-    }
+    if(addr <= (cpu->ROM_SIZE + cpu->RAM_SIZE) && addr > cpu->ROM_SIZE)
+	return &cpu->ram[virtual_addr];
 
-    virtual_addr = addr - cpu->ROM_SIZE;
-    return &cpu->ram[virtual_addr];
+    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE) || addr < 0)
+	printf("ERROR Address %#04x out of bound not in RAM or ROM\npc = %#04x\n", addr, cpu->pc);
+
+    exit(1);
 }
 
 uint8_t mem_out(cpu *cpu, uint16_t addr)
 {
-    uint16_t virtual_addr;
-    if(addr < cpu->ROM_SIZE) return cpu->rom[addr];
-
-    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
-    {
-	printf("ERROR Address %#04x out of bound\nPC = %d\n", cpu->pc);
-	cpu->halt = 1;
-    }
-
-    virtual_addr = addr - cpu->ROM_SIZE;
-    return cpu->ram[virtual_addr];
+    return *(mem_ptr_out(cpu, addr));
 }
-
 
 void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
@@ -191,48 +196,6 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
     cpu->ram[virtual_addr] = val;
 
 }
-
-/*
- * Checks if addr given to PC is or not within the given bound
- */
-uint16_t mem_check(uint32_t bound, uint16_t addr, char *memname, uint16_t pc)
-{
-    if(addr < bound){ return addr; }
-    else{printf("ERROR segmentation fault: %s\nPC = %#04x\n", memname, pc);}
-}
-
-/*
- * Controls virtualization of the stack 
- *
-void stack_in(cpu *cpu, uint16_t addr, uint8_t val) 
-{
-    uint16_t virtual_addr;
-
-    if(addr <= cpu->ROM_SIZE || addr >= (cpu->ROM_SIZE + cpu->STACK_SIZE + cpu->RAM_SIZE))
-    {
-	printf("ERROR Address %#04x invalid write to stack\nPC= %d\n", cpu->pc);
-	exit(1);
-    }
-
-    virtual_addr = addr - cpu->ROM_SIZE;
-    cpu->stack[virtual_addr] = val;
-}
-
-uint8_t stack_out(cpu *cpu, uint16_t addr)
-{
-    uint16_t virtual_addr;
-
-    if(addr <= cpu->ROM_SIZE || addr >= (cpu->ROM_SIZE + cpu->STACK_SIZE + cpu->RAM_SIZE))
-    {
-	printf("ERROR Address %#04x invalid read to stack\nPC= %d\n", cpu->pc);
-	exit(1);
-    }
-
-    virtual_addr = addr - cpu->ROM_SIZE;
-
-    return cpu->stack[virtual_addr];
-}
-*/
 
 uint8_t get_psw(cpu *cpu)
 {
@@ -284,25 +247,10 @@ int parity(uint8_t byte)
     return (~byte) & 1;
 }
 
-void set_flag_c(cpu *cpu, uint16_t result)
-{
-    cpu->flags->c = !!(result & 0xff00);
-}
-
-void set_flag_s(cpu *cpu, uint8_t result)
-{
-    cpu->flags->s = !!is_bit_set(result, 7);
-}
-
-void set_flag_p(cpu *cpu, uint8_t result)
-{
-    cpu->flags->p = parity(result);
-}
-
-void set_flag_z(cpu *cpu, uint8_t result)
-{
-    cpu->flags->z = !!!result;
-}
+void set_flag_c(cpu *cpu, uint16_t result){  cpu->flags->c = !! (result & 0xff00);    }
+void set_flag_s (cpu *cpu, uint8_t result){  cpu->flags->s = !! is_bit_set(result, 7);}
+void set_flag_p (cpu *cpu, uint8_t result){  cpu->flags->p =    parity(result);       }
+void set_flag_z (cpu *cpu, uint8_t result){  cpu->flags->z = !!!result;               }
 
 void set_flags_all(cpu *cpu, uint16_t result)
 {
@@ -335,13 +283,11 @@ void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
 
 uint8_t read_port(cpu *cpu, uint8_t port)
 {
-    port = mem_check(PORT_SIZE, port, "PORT", cpu->pc);
     return cpu->ports[port];
 }
 
 void write_port(cpu *cpu, uint8_t port, uint8_t val)
 {
-    port = mem_check(PORT_SIZE, port, "PORT", cpu->pc);
     cpu->ports[port] = val;
 }
 
@@ -493,45 +439,14 @@ uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation,
 
 // ======= operations =========
 
-uint16_t add(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 + r2 + flag; 
-}
-
-uint16_t sub(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 - r2 - flag;
-}
-
-uint16_t and(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 & r2;
-}
-
-uint16_t or(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 | r2; 
-}
-
-uint16_t xor(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 ^ r2;
-}
-
-uint16_t cmp(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r1 - r2;
-}
-
-uint16_t incr(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r2 + 1;
-}
-
-uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag)
-{
-    return r2 - 1;
-}
+uint16_t add (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 + r2 + flag; }
+uint16_t sub (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 - r2 - flag; }
+uint16_t and (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 & r2;        }
+uint16_t or  (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 | r2;        }
+uint16_t xor (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 ^ r2;        }
+uint16_t cmp (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 - r2;        }
+uint16_t incr(uint8_t r1, uint8_t r2, uint8_t flag){  return r2 + 1;         }
+uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag){  return r2 - 1;         }
 
 // ====== special cases ====
 void incr_m(cpu *cpu)
@@ -679,13 +594,8 @@ void ex_hl_sp(cpu *cpu)
 {
     uint8_t tmp;
 
-    tmp = cpu->l;
-    cpu->l = mem_out(cpu, cpu->sp);
-    mem_in(cpu, cpu->sp, tmp);
-    
-    tmp = cpu->h;
-    cpu->h = mem_out(cpu, cpu->sp+1);
-    mem_in(cpu, cpu->sp+1, tmp);
+    swap(&cpu->l, mem_ptr_out(cpu, cpu->sp));
+    swap(&cpu->h, mem_ptr_out(cpu, cpu->sp+1));
 }
 
 //SPHL
@@ -723,7 +633,12 @@ void jump(cpu *cpu, uint8_t cond)
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
     uint16_t addr = join(byte3, byte2);
 
-    if(cond) {cpu->pc = mem_check(cpu->ROM_SIZE, addr, "ROM", cpu->pc);cpu->pc--;}
+    if(cond)
+    {
+	cpu->pc = fetch_inst(cpu, addr);
+	//weird but it's only so that I can inc the pc every inst_process
+	cpu->pc--;
+    }
 }
 
 //CALL addr
@@ -741,7 +656,7 @@ void ret(cpu *cpu, uint8_t cond)
     {
 	uint8_t rh, rl;
 	pop(cpu, &rh, &rl);
-	cpu->pc = mem_check(cpu->ROM_SIZE, join(rh, rl), "ROM", cpu->pc);
+	cpu->pc = fetch_inst(cpu, join(rh, rl));
     }
 }
 
@@ -749,13 +664,13 @@ void ret(cpu *cpu, uint8_t cond)
 void rst_n(cpu *cpu, uint8_t opcode)
 {
     push(cpu, get_rh(cpu->pc), get_rl(cpu->pc));
-    cpu->pc = mem_check(cpu->ROM_SIZE, opcode << 3, "ROM", cpu->pc);
+    cpu->pc = fetch_inst(cpu, opcode << 3);
 }
 
 //PCHL
 void jump_hl(cpu *cpu)
 {
-    cpu->pc = mem_check(cpu->ROM_SIZE, join(cpu->h, cpu->l), "ROM", cpu->pc);
+    cpu->pc = fetch_inst(cpu, join(cpu->h, cpu->l));
 }
 
 //DAA 
@@ -784,7 +699,7 @@ void generate_intr(cpu *cpu, uint8_t opcode)
  */
 int inst_process(cpu *cpu)
 {
-    uint8_t opcode = mem_out(cpu, cpu->pc);
+    uint8_t opcode = fetch_inst(cpu, cpu->pc);
 
     if(cpu->intr && cpu->intr_enable) 
     {
@@ -958,7 +873,7 @@ int inst_process(cpu *cpu)
 	case 0x34: incr_m(cpu); break; //    INR M	
 	case 0x35: decr_m(cpu); break; //    DCR M	
 
-	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); break; //    DAA	
+	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); exit(1); break; //    DAA	
 
 
 	case 0x80: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ADD B	
@@ -1140,6 +1055,7 @@ int inst_process(cpu *cpu)
    
     //increase pc
     cpu->pc++;
+
     //return instruction cycle 
     return instruction_cycle[opcode];
 }

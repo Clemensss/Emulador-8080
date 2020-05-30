@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
 
     cpu = init_cpu(argv[1], 0x10000);
     screen = init_screen(BASE_SCR_WIDTH, BASE_SCR_HEIGHT);
+
     prepare_scene(screen);
 
     emulator_loop(cpu, screen);
@@ -53,7 +54,7 @@ void emulator_loop(cpu *cpu, struct screen_t *screen)
    
     uint8_t burst = 1;
 
-    while(true)
+    while(!cpu->halt)
     {
 	//MAKE THIS WORK
 	/*Basically it should burst a couple of insts 
@@ -66,7 +67,7 @@ void emulator_loop(cpu *cpu, struct screen_t *screen)
 	     burst = 0;
 	}
 
-	if(cpu->halt) break;
+	//if(cpu->halt) break;
 
 #ifndef CPUDIAG
 
