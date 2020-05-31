@@ -63,7 +63,7 @@ void emulator_loop(cpu *cpu, struct screen_t *screen)
 
 	if(burst)
 	{
-	     cpu_loop(cpu, 10000);
+	     cpu_loop(cpu, 5000);
 	     burst = 0;
 	}
 

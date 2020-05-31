@@ -48,6 +48,7 @@ struct flags_t
     uint8_t p:1;
     uint8_t s:1;
     uint8_t c:1;
+    uint8_t ac:1;
 };
 
 typedef struct flags_t flags;
@@ -116,8 +117,8 @@ void     set_flag_c       (cpu *cpu, uint16_t result)         ;
 void     set_flag_s       (cpu *cpu, uint8_t result)          ;
 void     set_flag_p       (cpu *cpu, uint8_t result)          ;
 void     set_flag_z       (cpu *cpu, uint8_t result)          ;
-void     set_flags_all    (cpu *cpu, uint16_t result)      ;
-void     set_reset_flags  (cpu *cpu, uint16_t result, const uint8_t *arr_flag);
+void     set_reset_flags  (cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2,
+			    const uint8_t *arr_flag);
 void     get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)  ;
 uint8_t  read_port        (cpu *cpu, uint8_t port)            ;
 void     write_port       (cpu *cpu, uint8_t port, uint8_t val) ;
@@ -151,9 +152,9 @@ uint16_t and (uint8_t r1, uint8_t r2, uint8_t flag);
 uint16_t or  (uint8_t r1, uint8_t r2, uint8_t flag);
 uint16_t xor (uint8_t r1, uint8_t r2, uint8_t flag);
 uint16_t cmp (uint8_t r1, uint8_t r2, uint8_t flag);
-uint16_t incr(uint8_t r1, uint8_t r2, uint8_t flag);
-uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag);
 
+void     incr        (cpu *cpu, uint8_t *r);
+void     decr        (cpu *cpu, uint8_t *r);
 void     incr_m      (cpu *cpu)                              ;
 void     decr_m      (cpu *cpu)                              ;
 void     incr_rp     (uint8_t *rh, uint8_t *rl)             ;
@@ -180,19 +181,19 @@ void     call        (cpu *cpu, uint8_t cond)                         ;
 void     ret         (cpu *cpu, uint8_t cond)                          ;
 void     rst_n       (cpu *cpu, uint8_t opcode)                      ;
 void     jump_hl     (cpu *cpu)                                    ;
-int      inst_process(cpu *cpu)                    ;
+
+//emulator
+int      inst_process(cpu *cpu);
 
 //io
-void     port_input(cpu *cpu)                                 ;
+void     port_input (cpu *cpu)                                 ;
 void     port_output(cpu *cpu)                                ;
+
 void     generate_intr(cpu *cpu, uint8_t opcode);
 
 //debug
-void debug_emu(uint8_t opcode);
-void cpu_diag_call(cpu *cpu);
-void print_state(cpu *cpu);
-
-void     assert(char *fun, uint32_t result, uint32_t equal_to);
-void     tests(void)                                          ;
+void     debug_emu(uint8_t opcode);
+void     cpu_diag_call(cpu *cpu);
+void     print_state(cpu *cpu);
 
 #endif

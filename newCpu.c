@@ -1,10 +1,10 @@
 #include "newCpu.h"
 
 //set all flags
-const uint8_t ALL_FLAGS[]         =  {1,1,1,1};
-const uint8_t ALL_CY_CLEARED[]    =  {1,1,1,-1};
-const uint8_t ALL_CY_AC_CLEARED[] =  {1,1,1,-1};
-const uint8_t ALL_BUT_CY[]        =  {1,1,1,0};
+const uint8_t ALL_FLAGS[]         =  {1,1,1,1,1};
+const uint8_t ALL_CY_CLEARED[]    =  {1,1,1,-1, 1};
+const uint8_t ALL_CY_AC_CLEARED[] =  {1,1,1,-1,-1};
+const uint8_t ALL_BUT_CY[]        =  {1,1,1,0,1};
 
 const uint8_t instruction_cycle[] = {
 	4, 10, 7, 5, 5, 5, 7, 4, 4, 10, 7, 5, 5, 5, 7, 4, //0x00..0x0f
@@ -33,10 +33,11 @@ flags* init_flags()
 {
     struct flags_t* flags = (struct flags_t*)malloc(sizeof(struct flags_t));
 
-    flags->z = 0;
-    flags->p = 0;
-    flags->s = 0;
-    flags->c = 0;
+    flags->z  = 0;
+    flags->p  = 0;
+    flags->s  = 0;
+    flags->c  = 0;
+    flags->ac = 0;
 
     return flags;
 }
@@ -155,10 +156,10 @@ uint8_t* mem_ptr_out(cpu *cpu, uint16_t addr)
 {
     uint16_t virtual_addr = addr - cpu->ROM_SIZE;
     
-    if(addr <= cpu->ROM_SIZE && addr >= 0)
+    if(addr < cpu->ROM_SIZE && addr >= 0)
 	return &cpu->rom[addr];
 
-    if(addr <= (cpu->ROM_SIZE + cpu->RAM_SIZE) && addr > cpu->ROM_SIZE)
+    if(addr < (cpu->ROM_SIZE + cpu->RAM_SIZE) && addr > cpu->ROM_SIZE)
 	return &cpu->ram[virtual_addr];
 
     else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE) || addr < 0)
@@ -176,20 +177,14 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
     uint16_t virtual_addr;
 
-    if(addr <= cpu->ROM_SIZE) 
+    if(addr < cpu->ROM_SIZE) 
     {
 #ifdef FUCKIT
 	cpu->rom[addr] = val;
 #else
 	printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
-	cpu->halt = 1;
+	exit(1);
 #endif
-    }
-
-    else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE))
-    {
-	printf("ERROR Address %#04x; Out of bound; PC = %#04x\n", addr, cpu->pc);
-	cpu->halt = 1;
     }
 
     virtual_addr = addr - cpu->ROM_SIZE;
@@ -204,7 +199,7 @@ uint8_t get_psw(cpu *cpu)
     if(cpu->flags->c)  psw = set_bit(psw, 0);
 		       psw = set_bit(psw, 1);
     if(cpu->flags->p)  psw = set_bit(psw, 2);
-  //if(cpu->flags->ac) psw = set_bit(psw, 4);
+    if(cpu->flags->ac) psw = set_bit(psw, 4);
     if(cpu->flags->z)  psw = set_bit(psw, 6);
     if(cpu->flags->s)  psw = set_bit(psw, 7);
 
@@ -213,11 +208,11 @@ uint8_t get_psw(cpu *cpu)
 
 void set_psw(cpu *cpu, uint8_t psw)
 {
-    cpu->flags->c = !!is_bit_set(psw, 0);
-    cpu->flags->p = !!is_bit_set(psw, 2);
-  //cpu->flags->ac= !!is_bit_set(psw, 4);
-    cpu->flags->z = !!is_bit_set(psw, 6);
-    cpu->flags->s = !!is_bit_set(psw, 7);
+    cpu->flags->c  = !!is_bit_set(psw, 0);
+    cpu->flags->p  = !!is_bit_set(psw, 2);
+    cpu->flags->ac = !!is_bit_set(psw, 4);
+    cpu->flags->z  = !!is_bit_set(psw, 6);
+    cpu->flags->s  = !!is_bit_set(psw, 7);
 }
 
 
@@ -247,37 +242,67 @@ int parity(uint8_t byte)
     return (~byte) & 1;
 }
 
-void set_flag_c(cpu *cpu, uint16_t result){  cpu->flags->c = !! (result & 0xff00);    }
-void set_flag_s (cpu *cpu, uint8_t result){  cpu->flags->s = !! is_bit_set(result, 7);}
-void set_flag_p (cpu *cpu, uint8_t result){  cpu->flags->p =    parity(result);       }
-void set_flag_z (cpu *cpu, uint8_t result){  cpu->flags->z = !!!result;               }
+// ======= flags ========
 
-void set_flags_all(cpu *cpu, uint16_t result)
-{
-    set_flag_c(cpu, result); 
-    set_flag_s(cpu, result);
-    set_flag_p(cpu, result);
-    set_flag_z(cpu, result);
+void set_flag_c (cpu *cpu, uint16_t result)
+{  
+    cpu->flags->c = !!(result & 0xff00);    
 }
 
-void set_reset_flags(cpu *cpu, uint16_t result, const uint8_t *arr_flag)
+void set_flag_ac(cpu *cpu, uint8_t r1, uint8_t r2)
 {
-    if(arr_flag[0]) set_flag_z(cpu, result);
-    else if(arr_flag[0] < 0)cpu->flags->z = 0;
+    uint8_t nibble_r1 = r1 & 0x0f;
+    uint8_t nibble_r2 = r2 & 0x0f;
+    
+    uint8_t result = nibble_r1 + nibble_r2;
 
-    if(arr_flag[1]) set_flag_s(cpu, result);
-    else if(arr_flag[1] < 0)cpu->flags->s = 0;
+    cpu->flags->ac = !!result & 0xf0;
+}
 
-    if(arr_flag[2]) set_flag_p(cpu, result);
-    else if(arr_flag[2] < 0)cpu->flags->p = 0;
+void set_flag_s (cpu *cpu, uint8_t result)
+{  
+    cpu->flags->s = !!is_bit_set(result, 7);
+}
 
-    if(arr_flag[3]) set_flag_c(cpu, result);
-    else if(arr_flag[3] < 0)cpu->flags->c = 0;
+void set_flag_p (cpu *cpu, uint8_t result) 
+{  
+    cpu->flags->p = parity(result);       
+}
+
+void set_flag_z (cpu *cpu, uint8_t result) 
+{  
+    cpu->flags->z = !!!result;               
+}
+
+/*
+ * Receives and array of 1, -1 or 0, each one defines what
+ * happens to the flag, either set, reset, or ignored,
+ * respectively
+ *
+ * r1 and r2 are added solely for the ac flag
+ */
+void set_reset_flags(cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2, 
+		     const uint8_t *arr_flag)
+{
+    if(arr_flag[0])          set_flag_z(cpu, result);
+    else if(arr_flag[0] < 0) cpu->flags->z  = 0;
+
+    if(arr_flag[1])          set_flag_s(cpu, result);
+    else if(arr_flag[1] < 0) cpu->flags->s  = 0;
+
+    if(arr_flag[2])          set_flag_p(cpu, result);
+    else if(arr_flag[2] < 0) cpu->flags->p  = 0;
+
+    if(arr_flag[3])          set_flag_c(cpu, result);
+    else if(arr_flag[3] < 0) cpu->flags->c  = 0;
+
+    if(arr_flag[4])          set_flag_ac(cpu, r1, r2);
+    else if(arr_flag[4] < 0) cpu->flags->ac = 0;
 }
 
 void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
 {
-    *byte_low = mem_out(cpu, ++cpu->pc);
+    *byte_low  = mem_out(cpu, ++cpu->pc);
     *byte_high = mem_out(cpu, ++cpu->pc);
 }
 
@@ -423,7 +448,7 @@ uint8_t register_indirect(cpu *cpu)
  * and an array containing the flags that should be set 
  */
 uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation, 
-	         uint8_t val, uint8_t add_flag, const uint8_t *set_flag_arr)
+	         uint8_t val, uint8_t c_flag, const uint8_t *arr_flag)
 {
     uint16_t result;
     
@@ -431,43 +456,53 @@ uint8_t alu_inst(cpu *cpu, uint8_t addr_mode, OP_FUNC_PTR operation,
     else if(addr_mode == REGISTER_INDIRECT) val = register_indirect(cpu);
     else if(addr_mode == DIRECT)            val = direct_value(cpu);
 
-    result = operation(cpu->a, val, add_flag);
-    set_reset_flags(cpu, result, set_flag_arr);
+    result = operation(cpu->a, val, c_flag);
+    
+    //2's complement for the ac check
+    if(operation == sub) val = (~val + 1);
+
+    set_reset_flags(cpu, result, cpu->a, val, arr_flag);
 
     return result;
 }
 
 // ======= operations =========
 
-uint16_t add (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 + r2 + flag; }
-uint16_t sub (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 - r2 - flag; }
-uint16_t and (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 & r2;        }
-uint16_t or  (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 | r2;        }
-uint16_t xor (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 ^ r2;        }
-uint16_t cmp (uint8_t r1, uint8_t r2, uint8_t flag){  return r1 - r2;        }
-uint16_t incr(uint8_t r1, uint8_t r2, uint8_t flag){  return r2 + 1;         }
-uint16_t decr(uint8_t r1, uint8_t r2, uint8_t flag){  return r2 - 1;         }
+uint16_t add (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg + val + c_flag;}
+uint16_t sub (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg - val - c_flag;}
+uint16_t and (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg & val;         }
+uint16_t or  (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg | val;         }
+uint16_t xor (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg ^ val;         }
+uint16_t cmp (uint8_t a_reg, uint8_t val, uint8_t c_flag){ return a_reg - val;         }
+
+//uint16_t incr(uint8_t a_reg, uint8_t val, uint8_t c_flag){ return val   +   1;         }
+//uint16_t decr(uint8_t a_reg, uint8_t val, uint8_t c_flag){ return val   -   1;         }
 
 // ====== special cases ====
+
+void incr(cpu *cpu, uint8_t *r)
+{
+    set_reset_flags(cpu, (*r)+1, *r, 1, ALL_BUT_CY);
+    (*r)++;
+}
+
 void incr_m(cpu *cpu)
 {
     uint8_t addr = mem_out(cpu, ++cpu->pc);
-    uint16_t result = mem_out(cpu, addr);
+    incr(cpu, mem_ptr_out(cpu, addr));
+}
 
-    set_flags_all(cpu, ++result);
-
-    mem_in(cpu, addr, result);
+void decr(cpu *cpu, uint8_t *r)
+{
+    set_reset_flags(cpu, (*r)-1, *r, -1, ALL_BUT_CY);
+    (*r)--;
 }
 
 //DCR M
 void decr_m(cpu *cpu)
 {
     uint8_t addr = mem_out(cpu, ++cpu->pc);
-    uint16_t result = mem_out(cpu, addr);
-
-    set_flags_all(cpu, --result);
-
-    mem_in(cpu, addr, result);
+    incr(cpu, mem_ptr_out(cpu, addr));
 }
 
 //INX rp
@@ -545,18 +580,18 @@ void rotate_right(cpu *cpu, uint8_t carry)
     rotate_byte(cpu, (cpu->a << 7), lone_bit, (cpu->a >> 1));
 }
 
-void assert(char *fun, uint32_t result, uint32_t equal_to)
+//DAA 
+void decimal_adj_acc(cpu *cpu)
 {
-    if(result == equal_to) printf("%s ASSERT OK\n");
-    else {printf("%s ASSERT ERROR\n"); exit(1);}
+    if((cpu->a & 0x0f) > 0x9 || cpu->flags->ac) cpu->a += 6;
+
+    if((cpu->a >> 4) > 0x9 || cpu->flags->ac)
+    {
+        uint8_t tmp = (cpu->a >> 4) + 6;
+        cpu->a = (tmp << 4) | (cpu->a & 0x0f);
+    }
 }
 
-void tests(void)
-{
-    uint8_t a = 0xf; 
-    uint8_t b = 0xf;
-    assert("join", join(a, b), (uint32_t)0xff);
-}
 
 //=========== stack ===================
 
@@ -671,17 +706,6 @@ void rst_n(cpu *cpu, uint8_t opcode)
 void jump_hl(cpu *cpu)
 {
     cpu->pc = fetch_inst(cpu, join(cpu->h, cpu->l));
-}
-
-//DAA 
-void decimal_adj_acc(cpu *cpu)
-{
-    //if((cpu->a & 0x0f) > 0x9 || cpu->flags->ac) cpu += 6;
-    //if((cpu->a >> 4) > 0x9 || cpu->flags->ac)
-    //{
-    //    uint8_t tmp = (cpu->a >> 4) + 6;
-    //    cpu->a = (tmp << 4) | (cpu->a & 0x0f);
-    //}
 }
 
 void generate_intr(cpu *cpu, uint8_t opcode)
@@ -851,30 +875,29 @@ int inst_process(cpu *cpu)
 	case 0x1b: decr_rp(&cpu->d, &cpu->e); break;//     DCX D
 	case 0x2b: decr_rp(&cpu->h, &cpu->l); break; //    DCX H
 	
-	case 0x04: cpu->b = alu_inst(cpu, REGISTER, incr, cpu->b, CARRY_OFF, ALL_BUT_CY); break; //    INR B	
-	case 0x0c: cpu->c = alu_inst(cpu, REGISTER, incr, cpu->c, CARRY_OFF, ALL_BUT_CY); break; //    INR C	
-	case 0x14: cpu->d = alu_inst(cpu, REGISTER, incr, cpu->d, CARRY_OFF, ALL_BUT_CY); break; //    INR D	
-	case 0x1c: cpu->e = alu_inst(cpu, REGISTER, incr, cpu->e, CARRY_OFF, ALL_BUT_CY); break; //    INR E	
-	case 0x24: cpu->h = alu_inst(cpu, REGISTER, incr, cpu->h, CARRY_OFF, ALL_BUT_CY); break; //    INR H	
-	case 0x2c: cpu->l = alu_inst(cpu, REGISTER, incr, cpu->l, CARRY_OFF, ALL_BUT_CY); break; //    INR L	
-	case 0x3c: cpu->a = alu_inst(cpu, REGISTER, incr, cpu->a, CARRY_OFF, ALL_BUT_CY); break; //    INR A	
+	case 0x04: incr(cpu, &cpu->b); break; //    INR B	
+	case 0x0c: incr(cpu, &cpu->c); break; //    INR C	
+	case 0x14: incr(cpu, &cpu->d); break; //    INR D	
+	case 0x1c: incr(cpu, &cpu->e); break; //    INR E	
+	case 0x24: incr(cpu, &cpu->h); break; //    INR H	
+	case 0x2c: incr(cpu, &cpu->l); break; //    INR L	
+	case 0x3c: incr(cpu, &cpu->a); break; //    INR A	
 
-	case 0x05: cpu->b = alu_inst(cpu, REGISTER, decr, cpu->b, CARRY_OFF, ALL_BUT_CY); break; //    DCR B	
-	case 0x0d: cpu->c = alu_inst(cpu, REGISTER, decr, cpu->c, CARRY_OFF, ALL_BUT_CY); break; //    DCR C	
-	case 0x15: cpu->d = alu_inst(cpu, REGISTER, decr, cpu->d, CARRY_OFF, ALL_BUT_CY); break; //    DCR D	
-	case 0x1d: cpu->e = alu_inst(cpu, REGISTER, decr, cpu->e, CARRY_OFF, ALL_BUT_CY); break; //    DCR E	
-	case 0x25: cpu->h = alu_inst(cpu, REGISTER, decr, cpu->h, CARRY_OFF, ALL_BUT_CY); break; //    DCR H	
-	case 0x2d: cpu->l = alu_inst(cpu, REGISTER, decr, cpu->l, CARRY_OFF, ALL_BUT_CY); break; //    DCR L	
-	case 0x3d: cpu->a = alu_inst(cpu, REGISTER, decr, cpu->a, CARRY_OFF, ALL_BUT_CY); break; //    DCR A	
+	case 0x05: decr(cpu, &cpu->b); break; //    DCR B	
+	case 0x0d: decr(cpu, &cpu->c); break; //    DCR C	
+	case 0x15: decr(cpu, &cpu->d); break; //    DCR D	
+	case 0x1d: decr(cpu, &cpu->e); break; //    DCR E	
+	case 0x25: decr(cpu, &cpu->h); break; //    DCR H	
+	case 0x2d: decr(cpu, &cpu->l); break; //    DCR L	
+	case 0x3d: decr(cpu, &cpu->a); break; //    DCR A	
 
-	case 0x3b: decr_sp(cpu)   ; break; //    DCX SP	
-	case 0x33: incr_sp(cpu)   ; break; //    INX SP	
+	case 0x3b: decr_sp(cpu); break; //    DCX SP	
+	case 0x33: incr_sp(cpu); break; //    INX SP	
 
 	case 0x34: incr_m(cpu); break; //    INR M	
 	case 0x35: decr_m(cpu); break; //    DCR M	
 
-	case 0x27: printf("Missing instruction opcode: %#04x\n", opcode); exit(1); break; //    DAA	
-
+	case 0x27: decimal_adj_acc(cpu); break; //    DAA	
 
 	case 0x80: cpu->a = alu_inst(cpu, REGISTER, add, cpu->b, CARRY_OFF, ALL_FLAGS); break; //    ADD B	
 	case 0x81: cpu->a = alu_inst(cpu, REGISTER, add, cpu->c, CARRY_OFF, ALL_FLAGS); break; //    ADD C	
