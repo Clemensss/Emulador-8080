@@ -176,7 +176,7 @@ draw_space	hardware.c	/^void draw_space(uint8_t *arr, SDL_Renderer **rend, int s
 draw_space	screen.c	/^void draw_space(uint8_t *arr, struct screen_t *screen, int start_x, int end_x)$/;"	f	typeref:typename:void
 e	newCpu.h	/^    uint8_t e; $/;"	m	struct:cpu_t	typeref:typename:uint8_t
 emulador	Makefile	/^emulador:$/;"	t
-emulator_loop	main.c	/^void emulator_loop(cpu *cpu, struct screen_t *screen)$/;"	f	typeref:typename:void
+emulator_loop	main.c	/^void emulator_loop(cpu *cpu)$/;"	f	typeref:typename:void
 enable_inter	emulador.c	/^void enable_inter(state8080 *state)$/;"	f	typeref:typename:void
 ex_hl_sp	newCpu.c	/^void ex_hl_sp(cpu *cpu)$/;"	f	typeref:typename:void
 exchange_HL_DE	emulador.c	/^void exchange_HL_DE(state8080 *state)$/;"	f	typeref:typename:void
@@ -332,6 +332,7 @@ set_flag_z	newCpu.c	/^void set_flag_z (cpu *cpu, uint8_t result) $/;"	f	typeref:
 set_psw	newCpu.c	/^void set_psw(cpu *cpu, uint8_t psw)$/;"	f	typeref:typename:void
 set_reset_flags	newCpu.c	/^void set_reset_flags(cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2, $/;"	f	typeref:typename:void
 sp	newCpu.h	/^    uint16_t sp;$/;"	m	struct:cpu_t	typeref:typename:uint16_t
+space_invaders_loop	main.c	/^void space_invaders_loop(cpu *cpu, struct screen_t *screen)$/;"	f	typeref:typename:void
 state	Makefile	/^state:$/;"	t
 state8080	emulador.h	/^typedef struct Machine state8080;$/;"	t	typeref:struct:Machine
 status_flags	emulador.h	/^    flags *status_flags;$/;"	m	struct:Machine	typeref:typename:flags *

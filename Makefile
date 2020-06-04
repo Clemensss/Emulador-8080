@@ -1,6 +1,6 @@
 emulador:
 	@echo "Emulador with debug"
-	gcc -o emubin -DDEBUG newCpu.c screen.c main.c $(shell pkg-config --cflags --libs sdl2)
+	gcc -o emubin -DDEBUG -g newCpu.c screen.c main.c $(shell pkg-config --cflags --libs sdl2)
 
 state:
 	@echo "state"

@@ -666,11 +666,10 @@ void jump(cpu *cpu, uint8_t cond)
 {
     uint8_t byte2 = mem_out(cpu, ++cpu->pc);
     uint8_t byte3 = mem_out(cpu, ++cpu->pc);
-    uint16_t addr = join(byte3, byte2);
 
     if(cond)
     {
-	cpu->pc = fetch_inst(cpu, addr);
+	cpu->pc = join(byte3, byte2);
 	//weird but it's only so that I can inc the pc every inst_process
 	cpu->pc--;
     }
@@ -691,7 +690,7 @@ void ret(cpu *cpu, uint8_t cond)
     {
 	uint8_t rh, rl;
 	pop(cpu, &rh, &rl);
-	cpu->pc = fetch_inst(cpu, join(rh, rl));
+	cpu->pc = join(rh, rl);
     }
 }
 
@@ -705,7 +704,7 @@ void rst_n(cpu *cpu, uint8_t opcode)
 //PCHL
 void jump_hl(cpu *cpu)
 {
-    cpu->pc = fetch_inst(cpu, join(cpu->h, cpu->l));
+    cpu->pc = join(cpu->h, cpu->l);
 }
 
 void generate_intr(cpu *cpu, uint8_t opcode)
@@ -1001,12 +1000,12 @@ int inst_process(cpu *cpu)
 
 	case 0xc3: jump(cpu, NO_COND); break; //    JMP adr	
 
-#ifndef CPUDIAG
-	case 0xcd: call(cpu, NO_COND); break; //    CALL adr
-#else
+//cpu diagnostic call procedure
+#ifdef CPUDIAG
 	case 0xcd: cpu_diag_call(cpu); break; 
+#else
+	case 0xcd: call(cpu, NO_COND); break; //    CALL adr
 #endif
-
 	case 0xc9: ret(cpu,  NO_COND); break; //    RET	
 
 	case 0xc2: jump(cpu, !cpu->flags->z); break; //    JNZ adr	

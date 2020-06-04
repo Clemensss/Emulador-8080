@@ -11,9 +11,11 @@
 #define TIME_INST_BURST  1
 #define MAX_CYCLES 10000
 
-void emulator_loop(cpu *cpu, struct screen_t *screen);
+void emulator_loop(cpu *cpu);
+void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 int cpu_loop(cpu *cpu, int max_cycles);
 void display_intr(cpu *cpu, struct screen_t *screen, uint8_t *toggle);
+
 int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff);
 void key_input(cpu *cpu, SDL_Event event);
 
@@ -23,22 +25,33 @@ int main(int argc, char *argv[])
     emulator_loop(cpu);*/
 
     struct cpu_t    *cpu;
-    struct screen_t *screen;
+    cpu = init_cpu(argv[2], 0x10000);
 
-    cpu = init_cpu(argv[1], 0x10000);
-    screen = init_screen(BASE_SCR_WIDTH, BASE_SCR_HEIGHT);
+    /* 
+     * defines a clear difference between raw cpu
+     * emulation and space invaders 
+     */
+    if(strcmp(argv[1], "0"))
+    {
+	emulator_loop(cpu);
+    }
+    else if(strcmp(argv[1], "1"))
+    {
+	struct screen_t *screen;
+	screen = init_screen(BASE_SCR_WIDTH, BASE_SCR_HEIGHT);
 
-    prepare_scene(screen);
+	prepare_scene(screen);
 
-    emulator_loop(cpu, screen);
+	space_invaders_loop(cpu, screen);
+	free(screen);
+    }
 
     free(cpu);
-    free(screen);
 
     return 0;
 }
 
-void emulator_loop(cpu *cpu, struct screen_t *screen)
+void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 {
     SDL_Event event;
     uint8_t toggle = 1;
@@ -56,20 +69,17 @@ void emulator_loop(cpu *cpu, struct screen_t *screen)
 
     while(!cpu->halt)
     {
-	//MAKE THIS WORK
 	/*Basically it should burst a couple of insts 
 	  for each while loop and when it reaches a 
 	  max it simply stops*/
 
 	if(burst)
 	{
-	     cpu_loop(cpu, 5000);
+	     cpu_loop(cpu, MAX_CYCLES);
 	     burst = 0;
 	}
 
 	//if(cpu->halt) break;
-
-#ifndef CPUDIAG
 
 	//MAKE THIS WORK
 	if(timer_intr(&inst_milisec, TIME_INST_BURST, &inst_before, &inst_diff))
@@ -79,8 +89,15 @@ void emulator_loop(cpu *cpu, struct screen_t *screen)
 	    display_intr(cpu, screen, &toggle);
 	
 	key_input(cpu, event);
-#endif
 
+    }
+}
+
+void emulator_loop(cpu *cpu)
+{
+    while(!cpu->halt)
+    {
+	cpu_loop(cpu, MAX_CYCLES);
     }
 }
 
@@ -119,7 +136,7 @@ int cpu_loop(cpu *cpu, int max_cycles)
 	cycles += inst_process(cpu);
     }
 
-    return max_cycles;
+    return cycles;
 }
 
 void key_input(cpu *cpu, SDL_Event event)
