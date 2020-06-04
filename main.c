@@ -7,12 +7,12 @@
 #define MID_SCREEN_ADDR 
 #define END_SCREEN_ADDR
 
-#define TIME_SCREEN_INTR 8
-#define TIME_INST_BURST  1
-#define MAX_CYCLES 10000
+#define TIME_SCREEN_INTR 80
+#define TIME_INST_BURST  10
+#define MAX_CYCLES 1000
 
 void emulator_loop(cpu *cpu);
-void space_invaders_loop(cpu *cpu, struct screen_t *screen)
+void space_invaders_loop(cpu *cpu, struct screen_t *screen);
 int cpu_loop(cpu *cpu, int max_cycles);
 void display_intr(cpu *cpu, struct screen_t *screen, uint8_t *toggle);
 
@@ -21,23 +21,22 @@ void key_input(cpu *cpu, SDL_Event event);
 
 int main(int argc, char *argv[])
 {
-    /*cpu *cpu = init_cpu(argv[1], 0x10000);
-    emulator_loop(cpu);*/
-
     struct cpu_t    *cpu;
+    struct screen_t *screen;
+
     cpu = init_cpu(argv[2], 0x10000);
 
     /* 
      * defines a clear difference between raw cpu
      * emulation and space invaders 
      */
-    if(strcmp(argv[1], "0"))
+    if(!strcmp(argv[1], "-e"))
     {
 	emulator_loop(cpu);
     }
-    else if(strcmp(argv[1], "1"))
+
+    else if(!strcmp(argv[1], "-i"))
     {
-	struct screen_t *screen;
 	screen = init_screen(BASE_SCR_WIDTH, BASE_SCR_HEIGHT);
 
 	prepare_scene(screen);
@@ -45,7 +44,8 @@ int main(int argc, char *argv[])
 	space_invaders_loop(cpu, screen);
 	free(screen);
     }
-
+    else
+	printf("Emu type not specified\n");
     free(cpu);
 
     return 0;
@@ -101,6 +101,7 @@ void emulator_loop(cpu *cpu)
     }
 }
 
+//Something is wrong
 int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)
 {
     if(*milisec > trigger)

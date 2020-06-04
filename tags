@@ -186,7 +186,6 @@ flags	emulador.h	/^typedef struct ConditionFlags flags;$/;"	t	typeref:struct:Con
 flags	newCpu.h	/^    struct flags_t *flags;$/;"	m	struct:cpu_t	typeref:struct:flags_t *
 flags	newCpu.h	/^typedef struct flags_t flags;$/;"	t	typeref:struct:flags_t
 flags_t	newCpu.h	/^struct flags_t $/;"	s
-fuckit	Makefile	/^fuckit:$/;"	t
 generate_intr	newCpu.c	/^void generate_intr(cpu *cpu, uint8_t opcode)$/;"	f	typeref:typename:void
 get_next_pc_bytes	newCpu.c	/^void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)$/;"	f	typeref:typename:void
 get_psw	newCpu.c	/^uint8_t get_psw(cpu *cpu)$/;"	f	typeref:typename:uint8_t
@@ -319,7 +318,7 @@ rotate_left_carry	emulador.c	/^void rotate_left_carry(state8080 *state)$/;"	f	ty
 rotate_right	emulador.c	/^void rotate_right(state8080 *state)$/;"	f	typeref:typename:void
 rotate_right	newCpu.c	/^void rotate_right(cpu *cpu, uint8_t carry)$/;"	f	typeref:typename:void
 rotate_right_carry	emulador.c	/^void rotate_right_carry(state8080 *state)$/;"	f	typeref:typename:void
-rst_n	newCpu.c	/^void rst_n(cpu *cpu, uint8_t opcode)$/;"	f	typeref:typename:void
+rst_n	newCpu.c	/^void rst_n(cpu *cpu, uint8_t n)$/;"	f	typeref:typename:void
 s	newCpu.h	/^    uint8_t s:1;$/;"	m	struct:flags_t	typeref:typename:uint8_t:1
 screen_t	screen.h	/^struct screen_t$/;"	s
 set_bit	newCpu.c	/^uint8_t set_bit(uint8_t byte, uint8_t bit)$/;"	f	typeref:typename:uint8_t
@@ -333,7 +332,6 @@ set_psw	newCpu.c	/^void set_psw(cpu *cpu, uint8_t psw)$/;"	f	typeref:typename:vo
 set_reset_flags	newCpu.c	/^void set_reset_flags(cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2, $/;"	f	typeref:typename:void
 sp	newCpu.h	/^    uint16_t sp;$/;"	m	struct:cpu_t	typeref:typename:uint16_t
 space_invaders_loop	main.c	/^void space_invaders_loop(cpu *cpu, struct screen_t *screen)$/;"	f	typeref:typename:void
-state	Makefile	/^state:$/;"	t
 state8080	emulador.h	/^typedef struct Machine state8080;$/;"	t	typeref:struct:Machine
 status_flags	emulador.h	/^    flags *status_flags;$/;"	m	struct:Machine	typeref:typename:flags *
 stop_sdl	hardware.c	/^void stop_sdl(SDL_Window **wind, SDL_Renderer **rend)$/;"	f	typeref:typename:void

@@ -179,12 +179,9 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 
     if(addr < cpu->ROM_SIZE) 
     {
-#ifdef FUCKIT
 	cpu->rom[addr] = val;
-#else
-	printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
-	exit(1);
-#endif
+	//printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
+	//exit(1);
     }
 
     virtual_addr = addr - cpu->ROM_SIZE;
@@ -256,7 +253,7 @@ void set_flag_ac(cpu *cpu, uint8_t r1, uint8_t r2)
     
     uint8_t result = nibble_r1 + nibble_r2;
 
-    cpu->flags->ac = !!result & 0xf0;
+    cpu->flags->ac = !!(result & 0xf0);
 }
 
 void set_flag_s (cpu *cpu, uint8_t result)
@@ -285,19 +282,19 @@ void set_reset_flags(cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2,
 		     const uint8_t *arr_flag)
 {
     if(arr_flag[0])          set_flag_z(cpu, result);
-    else if(arr_flag[0] < 0) cpu->flags->z  = 0;
+    else if(arr_flag[0] == -1) cpu->flags->z  = 0;
 
     if(arr_flag[1])          set_flag_s(cpu, result);
-    else if(arr_flag[1] < 0) cpu->flags->s  = 0;
+    else if(arr_flag[1] == -1) cpu->flags->s  = 0;
 
     if(arr_flag[2])          set_flag_p(cpu, result);
-    else if(arr_flag[2] < 0) cpu->flags->p  = 0;
+    else if(arr_flag[2] == -1) cpu->flags->p  = 0;
 
     if(arr_flag[3])          set_flag_c(cpu, result);
-    else if(arr_flag[3] < 0) cpu->flags->c  = 0;
+    else if(arr_flag[3] == -1) cpu->flags->c  = 0;
 
     if(arr_flag[4])          set_flag_ac(cpu, r1, r2);
-    else if(arr_flag[4] < 0) cpu->flags->ac = 0;
+    else if(arr_flag[4] == -1) cpu->flags->ac = 0;
 }
 
 void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
@@ -488,8 +485,7 @@ void incr(cpu *cpu, uint8_t *r)
 
 void incr_m(cpu *cpu)
 {
-    uint8_t addr = mem_out(cpu, ++cpu->pc);
-    incr(cpu, mem_ptr_out(cpu, addr));
+    incr(cpu, mem_ptr_out(cpu, join(cpu->h, cpu->l)));
 }
 
 void decr(cpu *cpu, uint8_t *r)
@@ -501,8 +497,7 @@ void decr(cpu *cpu, uint8_t *r)
 //DCR M
 void decr_m(cpu *cpu)
 {
-    uint8_t addr = mem_out(cpu, ++cpu->pc);
-    incr(cpu, mem_ptr_out(cpu, addr));
+    decr(cpu, mem_ptr_out(cpu, join(cpu->h, cpu->l)));
 }
 
 //INX rp
@@ -585,9 +580,10 @@ void decimal_adj_acc(cpu *cpu)
 {
     if((cpu->a & 0x0f) > 0x9 || cpu->flags->ac) cpu->a += 6;
 
-    if((cpu->a >> 4) > 0x9 || cpu->flags->ac)
+    if((cpu->a >> 4) > 0x9 || cpu->flags->c)
     {
         uint8_t tmp = (cpu->a >> 4) + 6;
+	cpu->flags->c = !!(tmp & 0xf0);
         cpu->a = (tmp << 4) | (cpu->a & 0x0f);
     }
 }
@@ -622,13 +618,10 @@ void pop_psw(cpu *cpu)
 //XTHL
 /*
  * I know it's weird but, bear with me, this is a literal
- * one time case, so yeah, I am doing the weird swap to
- * maintain the stack data encapsulated
+ * one time case, so yeah, I am doing the weird swap
  */
 void ex_hl_sp(cpu *cpu)
 {
-    uint8_t tmp;
-
     swap(&cpu->l, mem_ptr_out(cpu, cpu->sp));
     swap(&cpu->h, mem_ptr_out(cpu, cpu->sp+1));
 }
@@ -695,10 +688,11 @@ void ret(cpu *cpu, uint8_t cond)
 }
 
 //RST n
-void rst_n(cpu *cpu, uint8_t opcode)
+void rst_n(cpu *cpu, uint8_t n)
 {
     push(cpu, get_rh(cpu->pc), get_rl(cpu->pc));
-    cpu->pc = fetch_inst(cpu, opcode << 3);
+    cpu->pc = n << 3;
+    cpu->pc--;
 }
 
 //PCHL
