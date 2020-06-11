@@ -141,10 +141,10 @@ uint8_t get_rl(uint16_t bytes)
 //void mapped_addr()
 uint8_t fetch_inst(cpu *cpu, uint16_t addr)
 {
-    if(addr <= cpu->ROM_SIZE && addr >= 0)
+    if(addr < cpu->ROM_SIZE && addr >= 0)
 	return cpu->rom[addr];
 
-    else if(addr > cpu->ROM_SIZE)
+    else if(addr >= cpu->ROM_SIZE)
 	printf("ERROR Address %#04x out of bound not in ROM \npc = %#04x\n", addr, cpu->pc);
     else if(addr < 0) 
 	printf("ERROR Address invalid not in ROM\npc = %#04x\n");
@@ -159,7 +159,7 @@ uint8_t* mem_ptr_out(cpu *cpu, uint16_t addr)
     if(addr < cpu->ROM_SIZE && addr >= 0)
 	return &cpu->rom[addr];
 
-    if(addr < (cpu->ROM_SIZE + cpu->RAM_SIZE) && addr > cpu->ROM_SIZE)
+    if(addr < (cpu->ROM_SIZE + cpu->RAM_SIZE) && addr >= cpu->ROM_SIZE)
 	return &cpu->ram[virtual_addr];
 
     else if(addr > (cpu->ROM_SIZE + cpu->RAM_SIZE) || addr < 0)
@@ -175,16 +175,16 @@ uint8_t mem_out(cpu *cpu, uint16_t addr)
 
 void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
 {
-    uint16_t virtual_addr;
+    uint16_t virtual_addr = addr - cpu->ROM_SIZE;
 
     if(addr < cpu->ROM_SIZE) 
     {
 	cpu->rom[addr] = val;
+	return;
 	//printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
 	//exit(1);
     }
 
-    virtual_addr = addr - cpu->ROM_SIZE;
     cpu->ram[virtual_addr] = val;
 
 }
@@ -594,17 +594,15 @@ void decimal_adj_acc(cpu *cpu)
 //PUSH rp
 void push(cpu *cpu, uint8_t rh, uint8_t rl)
 {
-    mem_in(cpu, cpu->sp-1, rh);
-    mem_in(cpu, cpu->sp-2, rl);
-    cpu->sp -= 2;
+    mem_in(cpu, --cpu->sp, rh);
+    mem_in(cpu, --cpu->sp, rl);
 }
 
 //POP rp
 void pop(cpu *cpu, uint8_t *rh, uint8_t *rl)
 {
-    *rl = mem_out(cpu, cpu->sp);
-    *rh = mem_out(cpu, cpu->sp+1);
-    cpu->sp += 2;
+    *rl = mem_out(cpu, cpu->sp++);
+    *rh = mem_out(cpu, cpu->sp++);
 }
 //POP PSW
 void pop_psw(cpu *cpu)
@@ -671,9 +669,14 @@ void jump(cpu *cpu, uint8_t cond)
 //CALL addr
 void call(cpu *cpu, uint8_t cond)
 {
-    uint8_t pch, pcl;
-    push(cpu, get_rh(cpu->pc+2), get_rl(cpu->pc+2));
-    jump(cpu, cond);
+    if(cond)
+    {
+	uint8_t pch, pcl;
+	push(cpu, get_rh(cpu->pc+2), get_rl(cpu->pc+2));
+	jump(cpu, cond);
+    }
+
+    else cpu->pc += 2;
 }
 
 //RET
@@ -720,8 +723,9 @@ int inst_process(cpu *cpu)
 
     if(cpu->intr && cpu->intr_enable) 
     {
-	opcode = cpu->intr_opcode;
-	cpu->intr = 0;
+	opcode           = cpu->intr_opcode;
+	cpu->intr_opcode = 0;
+	cpu->intr        = 0;
     }
 
 #ifdef DEBUG
@@ -771,10 +775,11 @@ int inst_process(cpu *cpu)
 	case 0x0e: load_word(cpu, &cpu->c); break; //    MVI C, D8	
 	case 0x16: load_word(cpu, &cpu->d); break; //    MVI D, D8	
 	case 0x1e: load_word(cpu, &cpu->e); break; //    MVI E, D8	
-	case 0x3e: load_word(cpu, &cpu->a); break; //    MVI A,D8	
 	case 0x26: load_word(cpu, &cpu->h); break; //    MVI H, D8	
 	case 0x2e: load_word(cpu, &cpu->l); break; //    MVI L, D8	
-	case 0x36: store_byte_hl(cpu);      break; //    MVI M,D8
+	case 0x3e: load_word(cpu, &cpu->a); break; //    MVI A, D8	
+
+	case 0x36: store_byte_hl(cpu);      break; //    MVI M, D8
 
 	case 0x46: load_word_hl(cpu, &cpu->b); break; //    MOV B,M	
 	case 0x4e: load_word_hl(cpu, &cpu->c); break; //    MOV C,M	

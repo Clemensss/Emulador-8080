@@ -7,8 +7,8 @@
 #define MID_SCREEN_ADDR 
 #define END_SCREEN_ADDR
 
-#define TIME_SCREEN_INTR 80
-#define TIME_INST_BURST  10
+#define TIME_SCREEN_INTR 8
+#define TIME_INST_BURST  1
 #define MAX_CYCLES 1000
 
 void emulator_loop(cpu *cpu);
@@ -86,10 +86,10 @@ void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 	    burst = 1;
 
 	if(timer_intr(&screen_milisec, TIME_SCREEN_INTR, &screen_before, &screen_diff))
+	{
 	    display_intr(cpu, screen, &toggle);
-	
+	}	
 	key_input(cpu, event);
-
     }
 }
 
@@ -104,7 +104,7 @@ void emulator_loop(cpu *cpu)
 //Something is wrong
 int timer_intr(int *milisec, int trigger, clock_t *before, clock_t *diff)
 {
-    if(*milisec > trigger)
+    if(*milisec >= trigger)
     {
 	*milisec = 0; 
 	*before = clock();
