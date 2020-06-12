@@ -7,9 +7,9 @@
 #define MID_SCREEN_ADDR 
 #define END_SCREEN_ADDR
 
-#define TIME_SCREEN_INTR 8
+#define TIME_SCREEN_INTR 16
 #define TIME_INST_BURST  1
-#define MAX_CYCLES 1000
+#define MAX_CYCLES 100
 
 void emulator_loop(cpu *cpu);
 void space_invaders_loop(cpu *cpu, struct screen_t *screen);
@@ -56,16 +56,18 @@ void space_invaders_loop(cpu *cpu, struct screen_t *screen)
     SDL_Event event;
     uint8_t toggle = 1;
 
-    int screen_milisec = 0,
-        inst_milisec   = 0;
+    //int screen_milisec = 0,
+    int    inst_milisec   = 0;
 
-    clock_t screen_before = clock(),
-	    inst_before   = clock();
+    //clock_t screen_before = clock(),
+    clock_t inst_before   = clock();
 
-    clock_t screen_diff,
-	    inst_diff;
+    //clock_t screen_diff,
+    clock_t inst_diff;
    
     uint8_t burst = 1;
+    
+    uint8_t screen_intr = 0;
 
     while(!cpu->halt)
     {
@@ -76,6 +78,8 @@ void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 	if(burst)
 	{
 	     cpu_loop(cpu, MAX_CYCLES);
+	     screen_intr++;
+
 	     burst = 0;
 	}
 
@@ -84,11 +88,20 @@ void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 	//MAKE THIS WORK
 	if(timer_intr(&inst_milisec, TIME_INST_BURST, &inst_before, &inst_diff))
 	    burst = 1;
-
-	if(timer_intr(&screen_milisec, TIME_SCREEN_INTR, &screen_before, &screen_diff))
+	
+	if(screen_intr >= 16)
 	{
 	    display_intr(cpu, screen, &toggle);
-	}	
+	    display_intr(cpu, screen, &toggle);
+	    screen_intr = 0;
+	}
+
+	/*if(timer_intr(&screen_milisec, TIME_SCREEN_INTR, &screen_before, &screen_diff))
+	{
+	    display_intr(cpu, screen, &toggle);
+	    display_intr(cpu, screen, &toggle);
+	}*/	
+
 	key_input(cpu, event);
     }
 }

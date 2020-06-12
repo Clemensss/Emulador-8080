@@ -180,12 +180,11 @@ void mem_in(cpu *cpu, uint16_t addr, uint8_t val)
     if(addr < cpu->ROM_SIZE) 
     {
 	cpu->rom[addr] = val;
-	return;
 	//printf("ERROR Address %#04x; Trying to write to rom; PC = %#04x\n", addr, cpu->pc);
 	//exit(1);
     }
 
-    cpu->ram[virtual_addr] = val;
+    else cpu->ram[virtual_addr] = val;
 
 }
 
@@ -671,7 +670,6 @@ void call(cpu *cpu, uint8_t cond)
 {
     if(cond)
     {
-	uint8_t pch, pcl;
 	push(cpu, get_rh(cpu->pc+2), get_rl(cpu->pc+2));
 	jump(cpu, cond);
     }
@@ -702,6 +700,7 @@ void rst_n(cpu *cpu, uint8_t n)
 void jump_hl(cpu *cpu)
 {
     cpu->pc = join(cpu->h, cpu->l);
+    cpu->pc--;
 }
 
 void generate_intr(cpu *cpu, uint8_t opcode)
@@ -1392,11 +1391,15 @@ void cpu_diag_call(cpu *cpu)
     {    
 	if (cpu->c == 9)    
 	{    
-	    uint16_t offset = join(cpu->d, cpu->e) + 4;
-	    char *c = &cpu->rom[offset];
-	    while (*c != '$')    
-		printf("%c", *c++);    
+	    uint16_t i = join(cpu->d, cpu->e);
+
+	    while(cpu->rom[i] != '$')    
+	    {
+		printf("%c", cpu->rom[i]);    
+		i++;
+	    }
             printf("\n");     
+
 	    exit(0);
 	}    
 	else if (cpu->c == 2) printf("print char routine called\n");    
