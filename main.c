@@ -7,9 +7,9 @@
 #define MID_SCREEN_ADDR 
 #define END_SCREEN_ADDR
 
-#define TIME_SCREEN_INTR 16
-#define TIME_INST_BURST  1
-#define MAX_CYCLES 100
+#define TIME_SCREEN_INTR 8
+#define TIME_INST_BURST  2
+#define MAX_CYCLES 16000
 
 void emulator_loop(cpu *cpu);
 void space_invaders_loop(cpu *cpu, struct screen_t *screen);
@@ -75,26 +75,29 @@ void space_invaders_loop(cpu *cpu, struct screen_t *screen)
 	  for each while loop and when it reaches a 
 	  max it simply stops*/
 
-	if(burst)
+	 cpu_loop(cpu, MAX_CYCLES);
+	 display_intr(cpu, screen, &toggle);
+
+	/*if(burst)
 	{
 	     cpu_loop(cpu, MAX_CYCLES);
+	     display_intr(cpu, screen, &toggle);
 	     screen_intr++;
 
 	     burst = 0;
-	}
+	}*/
 
 	//if(cpu->halt) break;
 
 	//MAKE THIS WORK
-	if(timer_intr(&inst_milisec, TIME_INST_BURST, &inst_before, &inst_diff))
+	/*if(timer_intr(&inst_milisec, TIME_INST_BURST, &inst_before, &inst_diff))
 	    burst = 1;
 	
-	if(screen_intr >= 16)
+	if(screen_intr >= TIME_SCREEN_INTR)
 	{
 	    display_intr(cpu, screen, &toggle);
-	    display_intr(cpu, screen, &toggle);
 	    screen_intr = 0;
-	}
+	}*/
 
 	/*if(timer_intr(&screen_milisec, TIME_SCREEN_INTR, &screen_before, &screen_diff))
 	{
