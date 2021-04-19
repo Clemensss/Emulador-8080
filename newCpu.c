@@ -147,7 +147,8 @@ uint8_t fetch_inst(cpu *cpu, uint16_t addr)
     else if(addr >= cpu->ROM_SIZE)
 	printf("ERROR Address %#04x out of bound not in ROM \npc = %#04x\n", addr, cpu->pc);
     else if(addr < 0) 
-	printf("ERROR Address invalid not in ROM\npc = %#04x\n");
+	printf("ERROR Address invalid not in ROM\npc = %#04x\n", cpu->pc);
+
 
     exit(1);
 }
@@ -192,8 +193,8 @@ uint8_t get_psw(cpu *cpu)
 {
     uint8_t psw = 0;
 
+					   psw = set_bit(psw, 1);
     if(cpu->flags->c)  psw = set_bit(psw, 0);
-		       psw = set_bit(psw, 1);
     if(cpu->flags->p)  psw = set_bit(psw, 2);
     if(cpu->flags->ac) psw = set_bit(psw, 4);
     if(cpu->flags->z)  psw = set_bit(psw, 6);
