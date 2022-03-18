@@ -89,7 +89,7 @@ struct cpu_t
     uint8_t intr_opcode;
     uint8_t intr_enable:1;
 
-    uint8_t *ports;
+    uint16_t *ports;
 };
 
 typedef struct cpu_t cpu;
@@ -120,8 +120,6 @@ void     set_flag_z       (cpu *cpu, uint8_t result)          ;
 void     set_reset_flags  (cpu *cpu, uint16_t result, uint8_t r1, uint8_t r2,
 			    const uint8_t *arr_flag);
 void     get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)  ;
-uint8_t  read_port        (cpu *cpu, uint8_t port)            ;
-void     write_port       (cpu *cpu, uint8_t port, uint8_t val) ;
 
 //data transfer
 void     load_word    (cpu *cpu, uint8_t *r)                 ;
@@ -186,8 +184,9 @@ void     jump_hl     (cpu *cpu)                                    ;
 int      inst_process(cpu *cpu);
 
 //io
-void     port_input (cpu *cpu)                                 ;
-void     port_output(cpu *cpu)                                ;
+void     in_port        (cpu *cpu)            ;
+void     out_port       (cpu *cpu) ;
+
 
 void     generate_intr(cpu *cpu, uint8_t opcode);
 

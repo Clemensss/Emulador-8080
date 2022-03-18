@@ -94,10 +94,11 @@ cpu* init_cpu(char *file_name, uint32_t ram_size)
     load_rom(file_name, &cpu->rom, &cpu->ROM_SIZE);
 
     cpu->ram   = (uint8_t*)malloc(cpu->RAM_SIZE * sizeof(uint8_t));
-    cpu->ports = (uint8_t*)malloc(PORT_SIZE *     sizeof(uint8_t));
+    cpu->ports = (uint16_t*)malloc(PORT_SIZE *     sizeof(uint16_t));
     
     memset_zero(cpu->ram, cpu->RAM_SIZE);
-    memset_zero(cpu->ports, PORT_SIZE);
+    for(int i = 0; i < PORT_SIZE; i++)
+		cpu->ports[i] = 0;
 
     return cpu;
 }
@@ -303,15 +304,7 @@ void get_next_pc_bytes(cpu *cpu, uint8_t *byte_low, uint8_t *byte_high)
     *byte_high = mem_out(cpu, ++cpu->pc);
 }
 
-uint8_t read_port(cpu *cpu, uint8_t port)
-{
-    return cpu->ports[port];
-}
 
-void write_port(cpu *cpu, uint8_t port, uint8_t val)
-{
-    cpu->ports[port] = val;
-}
 
 // ========== data transfer ==============
 //mov r <- data
@@ -632,17 +625,19 @@ void store_hl_sp(cpu *cpu)
 
 //========== IO ===============
 //IN port
-void port_input(cpu *cpu)
+void in_port(cpu *cpu)
 {
     uint8_t port = mem_out(cpu, ++cpu->pc);
-    cpu->a = read_port(cpu, port);
+    cpu->h = get_rh(cpu->ports[port]);
+    cpu->l = get_rl(cpu->ports[port]);
+
 }
 
 //OUT port
-void port_output(cpu *cpu)
+void out_port(cpu *cpu)
 {
     uint8_t port = mem_out(cpu, ++cpu->pc);
-    write_port(cpu, port, cpu->a);
+    cpu->ports[port] = join_hl(cpu);
 }
 
 
@@ -1048,8 +1043,8 @@ int inst_process(cpu *cpu)
 
 
 	//======== IO =========
-	case 0xd3: port_output(cpu); break; //    OUT D8	
-	case 0xdb: port_input(cpu);  break; //    IN D8	
+	case 0xd3: out_port(cpu); break; //    OUT D8	
+	case 0xdb: in_port(cpu);  break; //    IN D8	
 
 	//========= NOP =======
 	case 0x00: break; //    -
